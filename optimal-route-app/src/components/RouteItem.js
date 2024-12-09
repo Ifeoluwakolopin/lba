@@ -31,15 +31,31 @@ const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
     tips: "Check local guides for current visiting hours.",
   };
 
+  const handleCheckboxClick = (e) => {
+    e.stopPropagation(); // Prevent card click when clicking checkbox
+    onVisitToggle(location);
+  };
+
+  // Handler for card click
+  const handleCardClick = () => {
+    setIsExpanded(!isExpanded);
+  };
   return (
-    <Card className={`mb-3 shadow-sm ${isVisited ? "border-success" : ""}`}>
+    <Card
+      className={`mb-3 shadow-sm ${isVisited ? "border-success" : ""}`}
+      onClick={handleCardClick}
+      style={{ cursor: "pointer" }}
+    >
       <Card.Header className="d-flex align-items-center justify-content-between bg-white py-3">
         <div className="d-flex align-items-center flex-grow-1">
-          <div className="custom-checkbox me-3">
+          <div
+            className="custom-checkbox me-3"
+            onClick={(e) => e.stopPropagation()} // Prevent card click when clicking checkbox area
+          >
             <Form.Check
               type="checkbox"
               checked={isVisited}
-              onChange={() => onVisitToggle(location)}
+              onChange={handleCheckboxClick}
               id={`visit-check-${index}`}
               label=""
               className="border-2"
@@ -59,12 +75,9 @@ const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
               Visited
             </Badge>
           )}
-          <button
-            className="btn btn-link p-0"
-            onClick={() => setIsExpanded(!isExpanded)}
-          >
+          <div className="chevron-icon">
             {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-          </button>
+          </div>
         </div>
       </Card.Header>
 

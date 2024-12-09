@@ -220,7 +220,6 @@ def parse_directions(directions, route):
 
 # Predefined locations from the original script
 PREDEFINED_DESTINATIONS = {
-    "Minerva Residence": (37.792033, -122.408465),
     "Chinatown San Francisco": (37.792597, -122.406063),
     "California Academy of Sciences": (37.76986, -122.46609),
     "Pier 39": (37.80867, -122.40982),
