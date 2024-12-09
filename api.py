@@ -6,6 +6,7 @@ import time
 import googlemaps
 from dotenv import load_dotenv
 import cvxpy as cp
+from datetime import datetime
 
 # Load environment variables
 load_dotenv()
@@ -39,7 +40,7 @@ def get_distance_matrix(gmaps, coordinates, mode="driving", buffer_minutes=5):
                     origins=[coordinates[i]],
                     destinations=[coordinates[j]],
                     mode=mode,
-                    departure_time=departure_time if mode == "transit" else None,
+                    departure_time=departure_time,
                 )
                 element = result["rows"][0]["elements"][0]
 
@@ -299,6 +300,7 @@ def calculate_route():
                 "total_time": total_time,
                 "directions": parsed_directions,
                 "transport_mode": transport_mode,
+                "current_time": datetime.now().isoformat(),
             }
         )
 
@@ -370,6 +372,7 @@ def recalculate_route():
                     "route": [current_location_name],
                     "total_time": 0,
                     "directions": "Tour completed!",
+                    "current_time": datetime.now().isoformat(),
                 }
             )
 
@@ -402,6 +405,7 @@ def recalculate_route():
                 "total_time": total_time,
                 "directions": parsed_directions,
                 "transport_mode": transport_mode,
+                "current_time": datetime.now().isoformat(),
                 "remaining_locations": list(remaining_destinations.keys()),
             }
         )

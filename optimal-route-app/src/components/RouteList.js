@@ -1,40 +1,30 @@
-import React, { useState } from "react";
+import React from "react";
 import { Card, Button } from "react-bootstrap";
 import { RefreshCw, Clock } from "lucide-react";
 import RouteItem from "./RouteItem";
 
-const RouteList = ({ routes, transportMode, onRecalculate }) => {
-  const [visitedLocations, setVisitedLocations] = useState([]);
-
-  // Remove duplicate start point at the end of the list
-  const filteredRoutes = routes.slice(0, -1);
-
-  const handleLocationVisited = (location) => {
-    setVisitedLocations((prev) => {
-      if (prev.includes(location)) {
-        return prev.filter((loc) => loc !== location);
-      }
-      return [...prev, location].sort(
-        (a, b) => filteredRoutes.indexOf(a) - filteredRoutes.indexOf(b)
-      );
-    });
-  };
-
+const RouteList = ({
+  routes,
+  transportMode,
+  visitedLocations,
+  onVisitToggle,
+  onRecalculate,
+}) => {
   const handleRecalculate = () => {
     const furthestVisited = visitedLocations.reduce((latest, current) => {
-      return filteredRoutes.indexOf(current) > filteredRoutes.indexOf(latest)
+      return routes.indexOf(current) > routes.indexOf(latest)
         ? current
         : latest;
     }, visitedLocations[0]);
 
     onRecalculate({
       visited_locations: visitedLocations,
-      current_location: furthestVisited,
+      current_location: furthestVisited || routes[0],
       transport_mode: transportMode,
     });
   };
 
-  if (!filteredRoutes || filteredRoutes.length === 0) {
+  if (!routes || routes.length === 0) {
     return (
       <Card>
         <Card.Body>
@@ -72,13 +62,13 @@ const RouteList = ({ routes, transportMode, onRecalculate }) => {
         </Card.Body>
       </Card>
 
-      {filteredRoutes.map((location, index) => (
+      {routes.map((location, index) => (
         <RouteItem
           key={location}
           location={location}
           index={index}
           isVisited={visitedLocations.includes(location)}
-          onVisitToggle={handleLocationVisited}
+          onVisitToggle={onVisitToggle}
         />
       ))}
     </div>

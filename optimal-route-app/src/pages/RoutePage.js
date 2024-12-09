@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, Navigate } from "react-router-dom";
 import { Container, Row, Col, Alert, Spinner } from "react-bootstrap";
 import RouteList from "../components/RouteList";
@@ -12,6 +12,18 @@ const RoutePage = () => {
   const [visitedLocations, setVisitedLocations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [currentTime, setCurrentTime] = useState(
+    new Date().toLocaleTimeString()
+  );
+
+  // Update current time every second
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date().toLocaleTimeString());
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // If no route data, redirect back to home
   if (!routeData) {
@@ -41,18 +53,21 @@ const RoutePage = () => {
 
       const result = await response.json();
 
-      // Update the route data while preserving the visited locations
-      setRouteData((prevData) => ({
-        ...prevData,
-        route: [
+      setRouteData((prevData) => {
+        const updatedRoute = [
           ...data.visited_locations,
           ...result.route.filter(
             (location) => !data.visited_locations.includes(location)
           ),
-        ],
-        remaining_locations: result.remaining_locations,
-        total_time: result.total_time,
-      }));
+        ];
+
+        return {
+          ...prevData,
+          route: updatedRoute,
+          remaining_locations: result.remaining_locations,
+          total_time: result.total_time,
+        };
+      });
 
       setVisitedLocations(data.visited_locations);
     } catch (err) {
@@ -86,6 +101,11 @@ const RoutePage = () => {
           routeData.total_time / 3600
         )} hours ${Math.floor((routeData.total_time % 3600) / 60)} minutes`}
       />
+
+      {/* Display Current Time */}
+      <div className="text-center py-2">
+        <p className="text-muted">Current Time: {currentTime}</p>
+      </div>
 
       {/* Main Content */}
       <main className="flex-grow-1 py-4">
