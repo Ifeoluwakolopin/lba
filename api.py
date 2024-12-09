@@ -14,6 +14,9 @@ load_dotenv()
 API_KEY = os.getenv("API_KEY")
 gmaps = googlemaps.Client(key=API_KEY)
 
+app = Flask(__name__)
+CORS(app)
+
 
 def get_distance_matrix(gmaps, coordinates, mode="driving", buffer_minutes=5):
 
@@ -124,12 +127,30 @@ def extract_tour(tour_matrix):
     return route
 
 
-def get_directions(gmaps, route, locations, mode="driving"):
+def get_directions(gmaps, route_indices, locations, mode="driving"):
+    """
+    Get directions for the route using Google Maps API
+
+    Args:
+        gmaps: Google Maps client
+        route_indices: List of indices representing the order of locations
+        locations: Dictionary of location names to coordinates
+        mode: Travel mode (driving, transit, walking)
+
+    Returns:
+        List of directions for each segment of the route
+    """
     directions = []
-    for i in range(len(route) - 1):
-        # Get origin and destination for the segment
-        origin = locations[route[i]]
-        destination = locations[route[i + 1]]
+    route_names = list(locations.keys())  # Convert locations dict keys to list
+
+    for i in range(len(route_indices) - 1):
+        # Get origin and destination names
+        origin_name = route_names[route_indices[i]]
+        dest_name = route_names[route_indices[i + 1]]
+
+        # Get coordinates for origin and destination
+        origin = locations[origin_name]
+        destination = locations[dest_name]
 
         # Format as strings for API
         origin_str = f"{origin[0]},{origin[1]}"
@@ -140,6 +161,7 @@ def get_directions(gmaps, route, locations, mode="driving"):
             origin=origin_str, destination=destination_str, mode=mode
         )
         directions.append(response)
+
     return directions
 
 
@@ -209,219 +231,201 @@ PREDEFINED_DESTINATIONS = {
     "San Francisco City Hall": (37.77927, -122.41924),
 }
 
-# Allowed transport modes
 ALLOWED_MODES = ["driving", "transit", "walking"]
 
-app = Flask(__name__)
-CORS(
-    app,
-    resources={
-        r"/*": {
-            "origins": ["http://localhost:3000"],
-            "methods": ["OPTIONS", "GET", "POST"],
-            "allow_headers": ["Content-Type"],
-        }
-    },
-)
 
-
-@app.route("/optimize-route", methods=["POST"])
-def optimize_route():
+@app.route("/calculate-route", methods=["POST"])
+def calculate_route():
     """
-    Endpoint to optimize route based on start location and destinations
+    Calculate optimal route through predefined SF destinations.
     """
-    data = request.json
+    try:
+        data = request.json
+        print("Received data:", data)  # Debug print
 
-    print(data)
-    # Validate input
-    start_location_name = data.get("start_location_name", "Custom Start")
-    start_location_coords = data.get("start_location_coords")
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
 
-    # Validate start location coordinates
-    if not start_location_coords or len(start_location_coords) != 2:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid start location coordinates. Must be a tuple/list of (latitude, longitude)"
-                }
-            ),
-            400,
+        # Log input validation
+        print("Validating input data...")
+        start_location_name = data.get("start_location_name")
+        start_location_coords = data.get("start_location_coords")
+
+        print(f"Start location: {start_location_name}")
+        print(f"Start coordinates: {start_location_coords}")
+
+        if not start_location_coords or len(start_location_coords) != 2:
+            return jsonify({"error": "Valid start location coordinates required"}), 400
+
+        # Log transport mode
+        transport_mode = data.get("transport_mode", "driving")
+        print(f"Transport mode: {transport_mode}")
+
+        if transport_mode not in ALLOWED_MODES:
+            return (
+                jsonify(
+                    {
+                        "error": f"Invalid transport mode. Allowed modes: {', '.join(ALLOWED_MODES)}"
+                    }
+                ),
+                400,
+            )
+
+        # Process locations with logging
+        print("Processing locations...")
+        locations = {start_location_name: start_location_coords}
+        locations.update(PREDEFINED_DESTINATIONS)
+        print(f"All locations: {locations}")
+
+        # Create ordered list
+        location_names = [start_location_name] + list(PREDEFINED_DESTINATIONS.keys())
+        print(f"Location order: {location_names}")
+
+        # Get coordinates
+        print("Getting coordinates...")
+        coordinates = [locations[name] for name in location_names]
+        print(f"Coordinates: {coordinates}")
+
+        # Calculate distance matrix
+        print("Calculating distance matrix...")
+        distance_matrix = get_distance_matrix(gmaps, coordinates, mode=transport_mode)
+        print(f"Distance matrix shape: {distance_matrix.shape}")
+
+        # Solve TSP
+        print("Solving TSP...")
+        tour_matrix, total_time = solve_tsp(distance_matrix)
+        print(f"Total time: {total_time}")
+
+        if tour_matrix is None:
+            print("TSP solver failed to find a solution")
+            return jsonify({"error": "Could not find a valid route"}), 400
+
+        # Extract route
+        print("Extracting route...")
+        route_indices = extract_tour(tour_matrix)
+        optimal_route = [location_names[i] for i in route_indices]
+        print(f"Optimal route: {optimal_route}")
+
+        # Get directions
+        print("Getting directions...")
+        directions = get_directions(
+            gmaps, route_indices, locations, mode=transport_mode
+        )
+        parsed_directions = parse_directions(directions, optimal_route)
+
+        # Return result
+        return jsonify(
+            {
+                "route": optimal_route,
+                "total_time": total_time,
+                "directions": parsed_directions,
+                "transport_mode": transport_mode,
+            }
         )
 
-    # Optional end location
-    end_location_name = data.get("end_location_name")
-    end_location_coords = data.get("end_location_coords", start_location_coords)
+    except Exception as e:
+        import traceback
 
-    # Selected destinations
-    selected_destinations = data.get(
-        "destinations", list(PREDEFINED_DESTINATIONS.keys())
-    )
-    transport_mode = data.get("transport_mode", "driving").lower()
+        print("Error occurred:")
+        print(traceback.format_exc())  # Print full stacktrace
+        return jsonify({"error": str(e)}), 500
 
-    # Validate transport mode
-    if transport_mode not in ALLOWED_MODES:
-        return (
-            jsonify(
-                {
-                    "error": f"Invalid transport mode. Allowed modes are: {', '.join(ALLOWED_MODES)}"
-                }
-            ),
-            400,
-        )
 
-    # Validate destinations exist
-    destination_locations = {}
-    for dest in selected_destinations:
-        if dest in PREDEFINED_DESTINATIONS:
-            destination_locations[dest] = PREDEFINED_DESTINATIONS[dest]
-        else:
-            return jsonify({"error": f"Destination {dest} not found"}), 400
+@app.route("/recalculate-route", methods=["POST"])
+def recalculate_route():
+    """
+    Recalculate route based on visited locations.
 
-    # Prepare locations for routing
-    all_locations = {
-        start_location_name: start_location_coords,
-        **destination_locations,
+    Expected request body:
+    {
+        "current_location": {
+            "name": "string",
+            "coordinates": [lat, lng]
+        },
+        "visited_locations": ["location_name1", "location_name2", ...],
+        "transport_mode": "driving" | "transit" | "walking"
     }
-
-    # Add end location if different from start
-    if end_location_name and end_location_coords:
-        all_locations[end_location_name] = end_location_coords
-
-    # Routing locations order
-    routing_locations = (
-        [start_location_name]
-        + list(set(destination_locations.keys()) - {start_location_name})
-        + (
-            [end_location_name]
-            if end_location_name and end_location_name != start_location_name
-            else []
-        )
-    )
-
-    # Get coordinates in the same order as routing locations
-    coordinates = [all_locations[loc] for loc in routing_locations]
-
-    # Calculate distance matrix with specified transport mode
-    distance_matrix = get_distance_matrix(gmaps, coordinates, mode=transport_mode)
-
-    # Solve TSP
-    tour_matrix, total_time = solve_tsp(distance_matrix)
-
-    # Extract optimal route
-    route_indices = extract_tour(tour_matrix)
-
-    # Get the actual route with location names
-    optimal_route = [routing_locations[i] for i in route_indices]
-
-    # Get directions
-    directions = get_directions(
-        gmaps, route_indices, all_locations, mode=transport_mode
-    )
-    parsed_directions = parse_directions(directions, optimal_route)
-
-    return jsonify(
-        {
-            "route": optimal_route,
-            "total_time": total_time,
-            "directions": parsed_directions,
-            "transport_mode": transport_mode,
-            "start_location": {
-                "name": start_location_name,
-                "coordinates": start_location_coords,
-            },
-        }
-    )
-
-
-@app.route("/visited-locations", methods=["POST"])
-def update_route_after_visits():
     """
-    Endpoint to recalculate route after some locations have been visited
-    """
-    data = request.json
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
 
-    # Validate current location
-    current_location_name = data.get("current_location_name", "Current Location")
-    current_location_coords = data.get("current_location_coords")
+        # Validate current location
+        current_location = data.get("current_location")
+        if not current_location or "coordinates" not in current_location:
+            return jsonify({"error": "Valid current location required"}), 400
 
-    # Validate current location coordinates
-    if not current_location_coords or len(current_location_coords) != 2:
-        return (
-            jsonify(
-                {
-                    "error": "Invalid current location coordinates. Must be a tuple/list of (latitude, longitude)"
-                }
-            ),
-            400,
-        )
+        # Get visited locations
+        visited_locations = set(data.get("visited_locations", []))
 
-    visited_locations = data.get("visited_locations", [])
-    remaining_destinations = data.get(
-        "remaining_destinations", list(PREDEFINED_DESTINATIONS.keys())
-    )
-    transport_mode = data.get("transport_mode", "driving").lower()
+        # Validate transport mode
+        transport_mode = data.get("transport_mode", "driving")
+        if transport_mode not in ALLOWED_MODES:
+            return (
+                jsonify(
+                    {
+                        "error": f"Invalid transport mode. Allowed modes: {', '.join(ALLOWED_MODES)}"
+                    }
+                ),
+                400,
+            )
 
-    # Validate transport mode
-    if transport_mode not in ALLOWED_MODES:
-        return (
-            jsonify(
-                {
-                    "error": f"Invalid transport mode. Allowed modes are: {', '.join(ALLOWED_MODES)}"
-                }
-            ),
-            400,
-        )
-
-    # Validate destinations exist
-    destination_locations = {}
-    for dest in remaining_destinations:
-        if dest in PREDEFINED_DESTINATIONS and dest not in visited_locations:
-            destination_locations[dest] = PREDEFINED_DESTINATIONS[dest]
-        elif dest not in PREDEFINED_DESTINATIONS:
-            return jsonify({"error": f"Destination {dest} not found"}), 400
-
-    # Prepare locations for routing
-    all_locations = {
-        current_location_name: current_location_coords,
-        **destination_locations,
-    }
-
-    # Routing locations order
-    routing_locations = [current_location_name] + list(destination_locations.keys())
-
-    # Get coordinates in the same order as routing locations
-    coordinates = [all_locations[loc] for loc in routing_locations]
-
-    # Calculate distance matrix with specified transport mode
-    distance_matrix = get_distance_matrix(gmaps, coordinates, mode=transport_mode)
-
-    # Solve TSP
-    tour_matrix, total_time = solve_tsp(distance_matrix)
-
-    # Extract optimal route
-    route_indices = extract_tour(tour_matrix)
-
-    # Get the actual route with location names
-    optimal_route = [routing_locations[i] for i in route_indices]
-
-    # Get directions
-    directions = get_directions(
-        gmaps, route_indices, all_locations, mode=transport_mode
-    )
-    parsed_directions = parse_directions(directions, optimal_route)
-
-    return jsonify(
-        {
-            "route": optimal_route,
-            "total_time": total_time,
-            "directions": parsed_directions,
-            "transport_mode": transport_mode,
-            "current_location": {
-                "name": current_location_name,
-                "coordinates": current_location_coords,
-            },
+        # Get remaining destinations
+        remaining_destinations = {
+            name: coords
+            for name, coords in PREDEFINED_DESTINATIONS.items()
+            if name not in visited_locations
         }
-    )
+
+        # If all locations visited, return success message
+        if not remaining_destinations:
+            return jsonify(
+                {
+                    "message": "All locations have been visited!",
+                    "route": [current_location["name"]],
+                    "total_time": 0,
+                    "directions": "Tour completed!",
+                }
+            )
+
+        # Process locations for routing
+        locations = {current_location["name"]: current_location["coordinates"]}
+        locations.update(remaining_destinations)
+
+        # Create ordered list of locations
+        location_names = [current_location["name"]] + list(
+            remaining_destinations.keys()
+        )
+        coordinates = [locations[name] for name in location_names]
+
+        # Calculate route
+        distance_matrix = get_distance_matrix(gmaps, coordinates, mode=transport_mode)
+        tour_matrix, total_time = solve_tsp(distance_matrix)
+        if tour_matrix is None:
+            return jsonify({"error": "Could not find a valid route"}), 400
+
+        route_indices = extract_tour(tour_matrix)
+        optimal_route = [location_names[i] for i in route_indices]
+
+        # Get directions
+        directions = get_directions(
+            gmaps, route_indices, locations, mode=transport_mode
+        )
+        parsed_directions = parse_directions(directions, optimal_route)
+
+        return jsonify(
+            {
+                "route": optimal_route,
+                "total_time": total_time,
+                "directions": parsed_directions,
+                "transport_mode": transport_mode,
+                "remaining_locations": list(remaining_destinations.keys()),
+            }
+        )
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 if __name__ == "__main__":

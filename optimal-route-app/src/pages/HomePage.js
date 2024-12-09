@@ -1,7 +1,24 @@
 import React, { useState } from "react";
-import { Container, Row, Col, Card, Alert } from "react-bootstrap";
+import { Container, Row, Col, Card, Alert, Spinner } from "react-bootstrap";
 import { MapPin, Navigation2 } from "lucide-react";
 import LocationInput from "../components/LocationInput";
+
+const TRAVEL_FACTS = [
+  {
+    icon: MapPin,
+    color: "blue",
+    title: "SF Attractions Tour",
+    description:
+      "Visit the most iconic locations in San Francisco with our optimized route planning.",
+  },
+  {
+    icon: Navigation2,
+    color: "green",
+    title: "Flexible Travel",
+    description:
+      "Choose your preferred mode of transport - drive, take public transit, or walk through the city.",
+  },
+];
 
 const HomePage = () => {
   const [optimizedRoute, setOptimizedRoute] = useState(null);
@@ -12,11 +29,9 @@ const HomePage = () => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://127.0.0.1:5000/optimize-route", {
+      const response = await fetch("http://127.0.0.1:5000/calculate-route", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
@@ -35,165 +50,128 @@ const HomePage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-blue-100">
-      {/* Header Section */}
-      <div className="bg-blue-600 text-white py-8 shadow-lg mb-8">
+    <div className="min-h-screen d-flex flex-column bg-light">
+      {/* Header */}
+      <header className="bg-primary text-white py-4 shadow-sm">
         <Container>
           <Row className="align-items-center">
-            <Col md={8}>
-              <h1 className="text-4xl font-bold mb-2">
-                <Navigation2 className="inline-block me-2" />
-                Route Optimizer
+            <Col>
+              <h1 className="d-flex align-items-center gap-2 mb-0">
+                <MapPin size={32} />
+                San Francisco Tour Planner
               </h1>
-              <p className="text-xl text-blue-100">
-                Plan your perfect journey through San Francisco's attractions
+              <p className="mb-0 mt-2 text-white-50">
+                Let us plan your perfect day touring San Francisco's top
+                attractions
               </p>
-            </Col>
-            <Col md={4} className="text-end d-none d-md-block">
-              <MapPin size={48} className="text-blue-200" />
             </Col>
           </Row>
         </Container>
-      </div>
+      </header>
 
       {/* Main Content */}
-      <Container className="mb-8">
-        {error && (
-          <Alert variant="danger" className="mb-4">
-            {error}
-          </Alert>
-        )}
+      <main className="flex-grow-1 py-4">
+        <Container>
+          {error && (
+            <Alert variant="danger" dismissible onClose={() => setError(null)}>
+              {error}
+            </Alert>
+          )}
 
-        <Row>
-          <Col lg={12}>
-            <Card className="shadow-lg border-0 rounded-lg">
-              <Card.Body className="p-4">
-                <h2 className="text-2xl font-semibold mb-4 text-gray-800">
-                  Plan Your Route
-                </h2>
-                <LocationInput onSubmit={handleRouteSubmit} />
+          <Card className="shadow-sm mb-4">
+            <Card.Body>
+              <LocationInput onSubmit={handleRouteSubmit} />
+            </Card.Body>
+          </Card>
 
-                {loading && (
-                  <div className="text-center mt-4">
-                    <p>Optimizing your route...</p>
+          {loading && (
+            <div className="text-center py-4">
+              <Spinner animation="border" role="status" variant="primary" />
+              <p className="mt-2 text-muted">Optimizing your route...</p>
+            </div>
+          )}
+
+          {optimizedRoute && (
+            <Card className="shadow-sm">
+              <Card.Body>
+                <h3 className="mb-4">Your Optimized Route</h3>
+
+                <div className="mb-4">
+                  <h5 className="text-primary">Stops in Order:</h5>
+                  <ol className="list-group list-group-numbered">
+                    {optimizedRoute.route.map((location, index) => (
+                      <li key={index} className="list-group-item">
+                        {location}
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+
+                <div className="mb-4">
+                  <h5 className="text-primary">Estimated Duration:</h5>
+                  <p className="ms-3">
+                    {Math.floor(optimizedRoute.total_time / 3600)} hours{" "}
+                    {Math.floor((optimizedRoute.total_time % 3600) / 60)}{" "}
+                    minutes
+                  </p>
+                </div>
+
+                <div>
+                  <h5 className="text-primary">Detailed Directions:</h5>
+                  <div className="bg-light p-3 rounded">
+                    {optimizedRoute.directions
+                      .split("\n")
+                      .map((line, index) => (
+                        <p
+                          key={index}
+                          className={
+                            line.startsWith("---")
+                              ? "fw-bold mt-3 mb-2"
+                              : "ms-3 mb-2"
+                          }
+                        >
+                          {line}
+                        </p>
+                      ))}
                   </div>
-                )}
-
-                {optimizedRoute && (
-                  <div className="mt-4">
-                    <h3 className="text-xl font-semibold mb-3">
-                      Optimized Route
-                    </h3>
-                    <div className="bg-gray-50 p-4 rounded-lg">
-                      <h4 className="font-semibold mb-2">Route Order:</h4>
-                      <ol className="list-decimal pl-4">
-                        {optimizedRoute.route.map((location, index) => (
-                          <li key={index} className="mb-2">
-                            {location}
-                          </li>
-                        ))}
-                      </ol>
-
-                      <h4 className="font-semibold mt-4 mb-2">Total Time:</h4>
-                      <p>
-                        {Math.round(optimizedRoute.total_time / 60)} minutes
-                      </p>
-
-                      <h4 className="font-semibold mt-4 mb-2">Directions:</h4>
-                      <div className="bg-white p-3 rounded border">
-                        {optimizedRoute.directions
-                          .split("\n")
-                          .map((line, index) => (
-                            <p
-                              key={index}
-                              className={
-                                line.startsWith("---")
-                                  ? "font-semibold mt-3"
-                                  : "ml-4"
-                              }
-                            >
-                              {line}
-                            </p>
-                          ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
+                </div>
               </Card.Body>
             </Card>
-          </Col>
-        </Row>
+          )}
 
-        {/* Features Section */}
-        {!optimizedRoute && (
-          <Row className="mt-8">
-            <Col md={4} className="mb-4">
-              <Card className="h-100 border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
-                <Card.Body className="p-4">
-                  <div className="bg-blue-100 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                    <MapPin className="text-blue-600" size={24} />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                    Smart Navigation
-                  </h3>
-                  <p className="text-gray-600">
-                    Optimize your route using advanced algorithms to find the
-                    most efficient path between destinations.
-                  </p>
-                </Card.Body>
-              </Card>
-            </Col>
-
-            <Col md={4} className="mb-4">
-              <Card className="h-100 border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
-                <Card.Body className="p-4">
-                  <div className="bg-green-100 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                    <Navigation2 className="text-green-600" size={24} />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                    Multiple Transport Options
-                  </h3>
-                  <p className="text-gray-600">
-                    Choose between driving, transit, or walking to suit your
-                    travel preferences.
-                  </p>
-                </Card.Body>
-              </Card>
-            </Col>
-
-            <Col md={4} className="mb-4">
-              <Card className="h-100 border-0 shadow-sm hover:shadow-md transition-shadow duration-300">
-                <Card.Body className="p-4">
-                  <div className="bg-purple-100 rounded-full w-12 h-12 flex items-center justify-center mb-4">
-                    <MapPin className="text-purple-600" size={24} />
-                  </div>
-                  <h3 className="text-xl font-semibold mb-2 text-gray-800">
-                    Popular Destinations
-                  </h3>
-                  <p className="text-gray-600">
-                    Explore San Francisco's most iconic locations with our
-                    curated list of destinations.
-                  </p>
-                </Card.Body>
-              </Card>
-            </Col>
-          </Row>
-        )}
-      </Container>
+          {!optimizedRoute && !loading && (
+            <Row className="mt-4">
+              {TRAVEL_FACTS.map((fact, index) => (
+                <Col md={6} key={index} className="mb-4">
+                  <Card className="h-100 shadow-sm">
+                    <Card.Body>
+                      <div
+                        className={`bg-${fact.color}-100 rounded-circle p-3 d-inline-flex mb-3`}
+                      >
+                        <fact.icon
+                          size={24}
+                          className={`text-${fact.color}-600`}
+                        />
+                      </div>
+                      <h4>{fact.title}</h4>
+                      <p className="text-muted mb-0">{fact.description}</p>
+                    </Card.Body>
+                  </Card>
+                </Col>
+              ))}
+            </Row>
+          )}
+        </Container>
+      </main>
 
       {/* Footer */}
-      <div className="bg-gray-800 text-white py-6 mt-auto">
+      <footer className="bg-dark text-white-50 py-3 mt-auto">
         <Container>
-          <Row>
-            <Col className="text-center">
-              <p className="mb-0">
-                © {new Date().getFullYear()} Route Optimizer. Plan your perfect
-                San Francisco adventure.
-              </p>
-            </Col>
-          </Row>
+          <small className="d-block text-center">
+            © {new Date().getFullYear()} SF Tour Planner. All rights reserved.
+          </small>
         </Container>
-      </div>
+      </footer>
     </div>
   );
 };
