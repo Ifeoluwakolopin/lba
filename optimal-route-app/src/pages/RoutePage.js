@@ -1,7 +1,16 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, Navigate } from "react-router-dom";
-import { Container, Row, Col, Alert, Spinner } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Alert,
+  Spinner,
+  ButtonGroup,
+  ToggleButton,
+} from "react-bootstrap";
 import RouteList from "../components/RouteList";
+import MapView from "../components/MapView";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
 import TripDetails from "../components/TripDetails";
@@ -10,6 +19,7 @@ import RouteInfoHeader from "../components/RouteInfoHeader";
 const RoutePage = () => {
   const location = useLocation();
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+  const [viewMode, setViewMode] = useState("list");
 
   const [routeState, setRouteState] = useState({
     routeData: location.state?.routeData || null,
@@ -46,15 +56,12 @@ const RoutePage = () => {
         })
         .then((result) => {
           setRouteState((prev) => {
-            // Filter out duplicate start location from the result route
             const filteredResultRoute = result.route.filter(
               (location, index, array) => {
-                // Keep the location if it's not the start location or if it's the first occurrence
                 return location.name !== array[0].name || index === 0;
               }
             );
 
-            // Create combined route preserving visited locations order
             const combinedRoute = [
               ...prev.routeData.route.filter((location) =>
                 data.visited_locations.includes(location.name)
@@ -118,7 +125,6 @@ const RoutePage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  // Initial route processing to remove duplicate start location
   useEffect(() => {
     if (routeState.routeData && !routeState.initialized) {
       setRouteState((prev) => ({
@@ -130,7 +136,7 @@ const RoutePage = () => {
               location.name !== array[0].name || index === 0
           ),
         },
-        initialized: true, // Set the flag
+        initialized: true,
       }));
     }
   }, [routeState.routeData, routeState.initialized]);
@@ -139,15 +145,10 @@ const RoutePage = () => {
     return <Navigate to="/" replace />;
   }
 
-  // Calculate total locations excluding the starting point
   const totalLocations = routeState.routeData.route.length - 1;
-
-  // Calculate visited locations excluding the starting point
   const visitedLocationsCount = routeState.visitedLocations.filter(
     (location) => location !== routeState.routeData.route[0].name
   ).length;
-
-  // Calculate remaining stops
   const remainingStops = Math.max(0, totalLocations - visitedLocationsCount);
 
   return (
@@ -188,6 +189,33 @@ const RoutePage = () => {
 
           <Row>
             <Col md={8}>
+              <div className="mb-3">
+                <ButtonGroup className="w-100">
+                  <ToggleButton
+                    id="view-list"
+                    type="radio"
+                    variant="outline-primary"
+                    name="view"
+                    value="list"
+                    checked={viewMode === "list"}
+                    onChange={(e) => setViewMode(e.currentTarget.value)}
+                  >
+                    List View
+                  </ToggleButton>
+                  <ToggleButton
+                    id="view-map"
+                    type="radio"
+                    variant="outline-primary"
+                    name="view"
+                    value="map"
+                    checked={viewMode === "map"}
+                    onChange={(e) => setViewMode(e.currentTarget.value)}
+                  >
+                    Map View
+                  </ToggleButton>
+                </ButtonGroup>
+              </div>
+
               <RouteInfoHeader
                 visitedLocations={routeState.visitedLocations}
                 onRecalculate={handleRecalculate}
@@ -195,13 +223,24 @@ const RoutePage = () => {
                 transportMode={routeState.routeData.transport_mode}
                 currentLocation={routeState.currentLocation}
               />
-              <RouteList
-                routes={routeState.routeData.route.map((r) => r.name)}
-                transportMode={routeState.routeData.transport_mode}
-                visitedLocations={routeState.visitedLocations}
-                onVisitToggle={handleVisitToggle}
-                directions={routeState.routeData.directions}
-              />
+
+              {viewMode === "list" ? (
+                <RouteList
+                  routes={routeState.routeData.route.map((r) => r.name)}
+                  transportMode={routeState.routeData.transport_mode}
+                  visitedLocations={routeState.visitedLocations}
+                  onVisitToggle={handleVisitToggle}
+                  directions={routeState.routeData.directions}
+                />
+              ) : (
+                <MapView
+                  routes={routeState.routeData.route}
+                  visitedLocations={routeState.visitedLocations}
+                  onVisitToggle={handleVisitToggle}
+                  currentLocation={routeState.currentLocation}
+                  transportMode={routeState.routeData.transport_mode}
+                />
+              )}
             </Col>
             <Col md={4}>
               <TripDetails
