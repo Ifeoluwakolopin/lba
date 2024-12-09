@@ -248,8 +248,6 @@ def calculate_route():
         # Log input validation
         start_location_name = data.get("start_location_name")
         start_location_coords = data.get("start_location_coords")
-        end_location_name = data.get("end_location_name", start_location_name)
-        end_location_coords = data.get("end_location_coords", start_location_coords)
 
         if not start_location_coords or len(start_location_coords) != 2:
             return jsonify({"error": "Valid start location coordinates required"}), 400
@@ -269,7 +267,6 @@ def calculate_route():
 
         locations = {start_location_name: start_location_coords}
         locations.update(PREDEFINED_DESTINATIONS)
-        locations[end_location_name] = end_location_coords
 
         # Create ordered list
         location_names = [start_location_name] + list(PREDEFINED_DESTINATIONS.keys())
@@ -287,16 +284,20 @@ def calculate_route():
         route_indices = extract_tour(tour_matrix)
         optimal_route = [location_names[i] for i in route_indices]
 
-        # Get directions
+        # Create route with coordinates
+        route_with_coords = [
+            {"name": location, "coordinates": locations[location]}
+            for location in optimal_route
+        ]
+
         directions = get_directions(
             gmaps, route_indices, locations, mode=transport_mode
         )
         parsed_directions = parse_directions(directions, optimal_route)
 
-        # Return result
         return jsonify(
             {
-                "route": optimal_route,
+                "route": route_with_coords,
                 "total_time": total_time,
                 "directions": parsed_directions,
                 "transport_mode": transport_mode,
@@ -308,45 +309,27 @@ def calculate_route():
         import traceback
 
         print("Error occurred:")
-        print(traceback.format_exc())  # Print full stacktrace
+        print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/recalculate-route", methods=["POST"])
 def recalculate_route():
-    """
-    Recalculate route based on visited locations.
-
-    Expected request body:
-    {
-        "current_location_name": "string",
-        "visited_locations": ["location_name1", "location_name2", ...],
-        "transport_mode": "driving" | "transit" | "walking"
-    }
-    """
     try:
         data = request.json
-        print(data)
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        # Get current location
         current_location_name = data.get("current_location_name")
         if (
             not current_location_name
             or current_location_name not in PREDEFINED_DESTINATIONS
         ):
             return jsonify({"error": "Valid current location required"}), 400
-        current_location = {
-            "name": current_location_name,
-            "coordinates": PREDEFINED_DESTINATIONS[current_location_name],
-        }
 
-        # Get visited locations
         visited_locations = set(data.get("visited_locations", []))
-
-        # Validate transport mode
         transport_mode = data.get("transport_mode", "driving")
+
         if transport_mode not in ALLOWED_MODES:
             return (
                 jsonify(
@@ -357,43 +340,53 @@ def recalculate_route():
                 400,
             )
 
-        # Get remaining destinations
         remaining_destinations = {
             name: coords
             for name, coords in PREDEFINED_DESTINATIONS.items()
             if name not in visited_locations
         }
 
-        # If all locations visited, return success message
         if not remaining_destinations:
             return jsonify(
                 {
                     "message": "All locations have been visited!",
-                    "route": [current_location_name],
+                    "route": [
+                        {
+                            "name": current_location_name,
+                            "coordinates": PREDEFINED_DESTINATIONS[
+                                current_location_name
+                            ],
+                        }
+                    ],
                     "total_time": 0,
                     "directions": "Tour completed!",
                     "current_time": datetime.now().isoformat(),
                 }
             )
 
-        # Process locations for routing
-        locations = {current_location_name: current_location["coordinates"]}
+        locations = {
+            current_location_name: PREDEFINED_DESTINATIONS[current_location_name]
+        }
         locations.update(remaining_destinations)
 
-        # Create ordered list of locations
         location_names = [current_location_name] + list(remaining_destinations.keys())
         coordinates = [locations[name] for name in location_names]
 
-        # Calculate route
         distance_matrix = get_distance_matrix(gmaps, coordinates, mode=transport_mode)
         tour_matrix, total_time = solve_tsp(distance_matrix)
+
         if tour_matrix is None:
             return jsonify({"error": "Could not find a valid route"}), 400
 
         route_indices = extract_tour(tour_matrix)
         optimal_route = [location_names[i] for i in route_indices]
 
-        # Get directions
+        # Create route with coordinates
+        route_with_coords = [
+            {"name": location, "coordinates": locations[location]}
+            for location in optimal_route
+        ]
+
         directions = get_directions(
             gmaps, route_indices, locations, mode=transport_mode
         )
@@ -401,12 +394,15 @@ def recalculate_route():
 
         return jsonify(
             {
-                "route": optimal_route,
+                "route": route_with_coords,
                 "total_time": total_time,
                 "directions": parsed_directions,
                 "transport_mode": transport_mode,
                 "current_time": datetime.now().isoformat(),
-                "remaining_locations": list(remaining_destinations.keys()),
+                "remaining_locations": [
+                    {"name": name, "coordinates": coords}
+                    for name, coords in remaining_destinations.items()
+                ],
             }
         )
 
@@ -415,4 +411,4 @@ def recalculate_route():
 
 
 if __name__ == "__main__":
-    app.run()
+    app.run(port=8000)
