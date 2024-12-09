@@ -1,0 +1,17 @@
+{
+    "Chinatown San Francisco": {
+      "description": "The largest Chinatown outside of Asia and oldest in North America, featuring traditional architecture, authentic cuisine, and vibrant culture.",
+      "images": ["/images/chinatown1.jpg", "/images/chinatown2.jpg", "/images/chinatown3.jpg"],
+      "tips": "Visit during lunch for the best food options. Don't miss the fortune cookie factory!"
+    },
+    "California Academy of Sciences": {
+      "description": "A world-class natural history museum, planetarium, and aquarium all under one living roof.",
+      "images": ["/images/cas1.jpg", "/images/cas2.jpg", "/images/cas3.jpg"],
+      "tips": "Thursday nights are adults-only NightLife events. Buy tickets online to avoid queues."
+    },
+    "Pier 39": {
+      "description": "Waterfront complex featuring shops, restaurants, and entertainment, famous for its sea lion colony and bay views.",
+      "images": ["/images/pier391.jpg", "/images/pier392.jpg", "/images/pier393.jpg"],
+      "tips": "Visit early morning or late afternoon to see sea lions. Great spot for sunset photos of the Golden Gate Bridge."
+    }
+  }

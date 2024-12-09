@@ -1,45 +1,26 @@
 import React, { useState } from "react";
 import { Card, Form, Collapse, Row, Col, Badge } from "react-bootstrap";
 import { ChevronDown, ChevronUp, MapPin, Check } from "lucide-react";
-
-const LOCATION_DETAILS = {
-  "Chinatown San Francisco": {
-    description:
-      "The largest Chinatown outside of Asia and oldest in North America, featuring traditional architecture, authentic cuisine, and vibrant culture.",
-    images: [
-      "/images/chinatown1.jpg",
-      "/images/chinatown2.jpg",
-      "/images/chinatown3.jpg",
-    ],
-    tips: "Visit during lunch for the best food options. Don't miss the fortune cookie factory!",
-  },
-  "California Academy of Sciences": {
-    description:
-      "A world-class natural history museum, planetarium, and aquarium all under one living roof.",
-    images: ["/images/cas1.jpg", "/images/cas2.jpg", "/images/cas3.jpg"],
-    tips: "Thursday nights are adults-only NightLife events. Buy tickets online to avoid queues.",
-  },
-  // Add other locations...
-};
+import locationDetails from "../locationDetails.json";
 
 const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  const details = LOCATION_DETAILS[location] || {
+  const details = locationDetails[location] || {
     description: "Explore this fascinating San Francisco location.",
     images: [],
     tips: "Check local guides for current visiting hours.",
   };
 
   const handleCheckboxClick = (e) => {
-    e.stopPropagation(); // Prevent card click when clicking checkbox
+    e.stopPropagation();
     onVisitToggle(location);
   };
 
-  // Handler for card click
   const handleCardClick = () => {
     setIsExpanded(!isExpanded);
   };
+
   return (
     <Card
       className={`mb-3 shadow-sm ${isVisited ? "border-success" : ""}`}
@@ -50,7 +31,7 @@ const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
         <div className="d-flex align-items-center flex-grow-1">
           <div
             className="custom-checkbox me-3"
-            onClick={(e) => e.stopPropagation()} // Prevent card click when clicking checkbox area
+            onClick={(e) => e.stopPropagation()}
           >
             <Form.Check
               type="checkbox"

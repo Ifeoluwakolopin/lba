@@ -270,30 +270,18 @@ def calculate_route():
                 400,
             )
 
-        # Process locations with logging
-        print("Processing locations...")
         locations = {start_location_name: start_location_coords}
         locations.update(PREDEFINED_DESTINATIONS)
-        print(f"All locations: {locations}")
 
         # Create ordered list
         location_names = [start_location_name] + list(PREDEFINED_DESTINATIONS.keys())
-        print(f"Location order: {location_names}")
 
-        # Get coordinates
-        print("Getting coordinates...")
         coordinates = [locations[name] for name in location_names]
-        print(f"Coordinates: {coordinates}")
 
-        # Calculate distance matrix
-        print("Calculating distance matrix...")
         distance_matrix = get_distance_matrix(gmaps, coordinates, mode=transport_mode)
-        print(f"Distance matrix shape: {distance_matrix.shape}")
 
         # Solve TSP
-        print("Solving TSP...")
         tour_matrix, total_time = solve_tsp(distance_matrix)
-        print(f"Total time: {total_time}")
 
         if tour_matrix is None:
             print("TSP solver failed to find a solution")
@@ -337,10 +325,7 @@ def recalculate_route():
 
     Expected request body:
     {
-        "current_location": {
-            "name": "string",
-            "coordinates": [lat, lng]
-        },
+        "current_location_name": "string",
         "visited_locations": ["location_name1", "location_name2", ...],
         "transport_mode": "driving" | "transit" | "walking"
     }
@@ -351,10 +336,17 @@ def recalculate_route():
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        # Validate current location
-        current_location = data.get("current_location")
-        if not current_location or "coordinates" not in current_location:
+        # Get current location
+        current_location_name = data.get("current_location_name")
+        if (
+            not current_location_name
+            or current_location_name not in PREDEFINED_DESTINATIONS
+        ):
             return jsonify({"error": "Valid current location required"}), 400
+        current_location = {
+            "name": current_location_name,
+            "coordinates": PREDEFINED_DESTINATIONS[current_location_name],
+        }
 
         # Get visited locations
         visited_locations = set(data.get("visited_locations", []))
@@ -383,20 +375,18 @@ def recalculate_route():
             return jsonify(
                 {
                     "message": "All locations have been visited!",
-                    "route": [current_location["name"]],
+                    "route": [current_location_name],
                     "total_time": 0,
                     "directions": "Tour completed!",
                 }
             )
 
         # Process locations for routing
-        locations = {current_location["name"]: current_location["coordinates"]}
+        locations = {current_location_name: current_location["coordinates"]}
         locations.update(remaining_destinations)
 
         # Create ordered list of locations
-        location_names = [current_location["name"]] + list(
-            remaining_destinations.keys()
-        )
+        location_names = [current_location_name] + list(remaining_destinations.keys())
         coordinates = [locations[name] for name in location_names]
 
         # Calculate route

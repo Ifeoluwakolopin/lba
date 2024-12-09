@@ -36,7 +36,19 @@ const RoutePage = () => {
       }
 
       const result = await response.json();
-      setRouteData(result);
+
+      // Update the route data while preserving the visited locations
+      setRouteData((prevData) => ({
+        ...prevData,
+        route: [
+          prevData.route[0], // Start location
+          ...data.visited_locations,
+          ...result.route.filter(
+            (location) => !data.visited_locations.includes(location)
+          ),
+        ],
+        remaining_locations: result.remaining_locations,
+      }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -72,7 +84,7 @@ const RoutePage = () => {
           <Row>
             <Col md={8}>
               <RouteList
-                routes={routeData.route.slice(1, -1)} // Remove start/end duplicates
+                routes={routeData.route}
                 transportMode={routeData.transport_mode}
                 onRecalculate={handleRecalculate}
               />
