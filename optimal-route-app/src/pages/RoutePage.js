@@ -239,6 +239,7 @@ const RoutePage = () => {
                   onVisitToggle={handleVisitToggle}
                   currentLocation={routeState.currentLocation}
                   transportMode={routeState.routeData.transport_mode}
+                  directionsRaw={routeState.routeData.directions_raw} // Pass raw directions
                 />
               )}
             </Col>

@@ -289,17 +289,17 @@ def calculate_route():
             {"name": location, "coordinates": locations[location]}
             for location in optimal_route
         ]
-
-        directions = get_directions(
+        directions_raw = get_directions(
             gmaps, route_indices, locations, mode=transport_mode
         )
-        parsed_directions = parse_directions(directions, optimal_route)
+        parsed_directions = parse_directions(directions_raw, optimal_route)
 
         return jsonify(
             {
                 "route": route_with_coords,
                 "total_time": total_time,
                 "directions": parsed_directions,
+                "directions_raw": directions_raw,
                 "transport_mode": transport_mode,
                 "current_time": datetime.now().isoformat(),
             }
@@ -387,16 +387,17 @@ def recalculate_route():
             for location in optimal_route
         ]
 
-        directions = get_directions(
+        directions_raw = get_directions(
             gmaps, route_indices, locations, mode=transport_mode
         )
-        parsed_directions = parse_directions(directions, optimal_route)
+        parsed_directions = parse_directions(directions_raw, optimal_route)
 
         return jsonify(
             {
                 "route": route_with_coords,
                 "total_time": total_time,
                 "directions": parsed_directions,
+                "directions_raw": directions_raw,
                 "transport_mode": transport_mode,
                 "current_time": datetime.now().isoformat(),
                 "remaining_locations": [

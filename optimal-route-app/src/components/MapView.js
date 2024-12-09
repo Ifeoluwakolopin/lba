@@ -12,10 +12,10 @@ const MapView = ({
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markersRef = useRef([]);
-  const polylineRef = useRef(null);
+  const directionsRendererRef = useRef(null);
 
   // Function to create marker element based on status
-  const createMarkerElement = (position, name, isVisited, isCurrent) => {
+  const createMarkerElement = (position, name, index, isVisited, isCurrent) => {
     const markerDiv = document.createElement("div");
 
     // Style for circular marker
@@ -29,9 +29,15 @@ const MapView = ({
       border: 2px solid white;
       cursor: pointer;
       box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
     `;
 
     markerDiv.style.cssText = markerStyle;
+    markerDiv.innerHTML = `${index + 1}`;
     markerDiv.title = name;
 
     return new window.google.maps.marker.AdvancedMarkerElement({
@@ -42,7 +48,12 @@ const MapView = ({
   };
 
   // Function to create info window content
-  const createInfoWindowContent = (locationName, isVisited, isCurrent) => {
+  const createInfoWindowContent = (
+    locationName,
+    index,
+    isVisited,
+    isCurrent
+  ) => {
     return `
       <div style="padding: 8px; min-width: 150px;">
         <h6 style="margin-bottom: 8px; font-weight: bold;">${locationName}</h6>
@@ -54,7 +65,7 @@ const MapView = ({
             background-color: ${isVisited ? "#4CAF50" : "#6c757d"};
             color: white;
           ">
-            ${isVisited ? "Visited" : "Not Visited"}
+            Stop ${index + 1} - ${isVisited ? "Visited" : "Not Visited"}
           </span>
           ${
             isCurrent
@@ -82,8 +93,8 @@ const MapView = ({
 
     mapInstanceRef.current = new window.google.maps.Map(mapRef.current, {
       zoom: 13,
-      center: { lat: 37.7749, lng: -122.4194 }, // San Francisco center
-      mapId: "YOUR_MAP_ID", // Optional: Add if you have a custom map style
+      center: { lat: 37.7749, lng: -122.4194 },
+      mapId: process.env.REACT_APP_GOOGLE_MAPS_ID,
       mapTypeControl: false,
       fullscreenControl: false,
       streetViewControl: false,
@@ -96,24 +107,40 @@ const MapView = ({
       ],
     });
 
+    // Initialize DirectionsRenderer
+    directionsRendererRef.current = new window.google.maps.DirectionsRenderer({
+      suppressMarkers: true, // We'll handle markers ourselves
+      preserveViewport: true,
+      polylineOptions: {
+        strokeColor: "#2196F3",
+        strokeOpacity: 0.8,
+        strokeWeight: 4,
+      },
+    });
+
+    directionsRendererRef.current.setMap(mapInstanceRef.current);
+
     return () => {
       mapInstanceRef.current = null;
+      if (directionsRendererRef.current) {
+        directionsRendererRef.current.setMap(null);
+      }
     };
   }, []);
 
-  // Update markers and route line
+  // Update markers and route
   useEffect(() => {
     if (!mapInstanceRef.current || !routes.length) return;
 
-    // Clear existing markers and polyline
+    // Clear existing markers
     markersRef.current.forEach((marker) => (marker.map = null));
-    if (polylineRef.current) polylineRef.current.setMap(null);
+    markersRef.current = [];
 
     const bounds = new window.google.maps.LatLngBounds();
     const newMarkers = [];
-    const path = [];
 
-    routes.forEach((route) => {
+    // Create markers
+    routes.forEach((route, index) => {
       if (
         !route.coordinates ||
         !Array.isArray(route.coordinates) ||
@@ -126,26 +153,28 @@ const MapView = ({
       const [lat, lng] = route.coordinates;
       const position = { lat, lng };
       bounds.extend(position);
-      path.push(position);
 
       const isVisited = visitedLocations.includes(route.name);
       const isCurrent = route.name === currentLocation;
 
-      // Create marker
       const marker = createMarkerElement(
         position,
         route.name,
+        index,
         isVisited,
         isCurrent
       );
       marker.map = mapInstanceRef.current;
 
-      // Create info window
       const infoWindow = new window.google.maps.InfoWindow({
-        content: createInfoWindowContent(route.name, isVisited, isCurrent),
+        content: createInfoWindowContent(
+          route.name,
+          index,
+          isVisited,
+          isCurrent
+        ),
       });
 
-      // Add click listeners
       marker.addListener("click", () => {
         onVisitToggle(route.name);
       });
@@ -165,17 +194,38 @@ const MapView = ({
       newMarkers.push(marker);
     });
 
-    // Create polyline
-    polylineRef.current = new window.google.maps.Polyline({
-      path,
-      geodesic: true,
-      strokeColor: "#2196F3",
-      strokeOpacity: 0.8,
-      strokeWeight: 3,
-      map: mapInstanceRef.current,
-    });
+    // Calculate route using DirectionsService
+    const directionsService = new window.google.maps.DirectionsService();
 
-    // Fit bounds with padding
+    // Create waypoints from all locations except first and last
+    const waypoints = routes.slice(1, -1).map((route) => ({
+      location: { lat: route.coordinates[0], lng: route.coordinates[1] },
+      stopover: true,
+    }));
+
+    directionsService.route(
+      {
+        origin: {
+          lat: routes[0].coordinates[0],
+          lng: routes[0].coordinates[1],
+        },
+        destination: {
+          lat: routes[routes.length - 1].coordinates[0],
+          lng: routes[routes.length - 1].coordinates[1],
+        },
+        waypoints: waypoints,
+        travelMode: transportMode.toUpperCase(),
+        optimizeWaypoints: false,
+      },
+      (response, status) => {
+        if (status === "OK") {
+          directionsRendererRef.current.setDirections(response);
+        } else {
+          console.error("Directions request failed due to " + status);
+        }
+      }
+    );
+
     mapInstanceRef.current.fitBounds(bounds, {
       padding: {
         top: 50,
@@ -190,11 +240,8 @@ const MapView = ({
     // Cleanup
     return () => {
       newMarkers.forEach((marker) => (marker.map = null));
-      if (polylineRef.current) {
-        polylineRef.current.setMap(null);
-      }
     };
-  }, [routes, visitedLocations, currentLocation, onVisitToggle]);
+  }, [routes, visitedLocations, currentLocation, onVisitToggle, transportMode]);
 
   return (
     <Card className="shadow-sm">
