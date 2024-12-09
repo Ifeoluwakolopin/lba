@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Form, Button, Container, Row, Col, Alert } from "react-bootstrap";
-import { MapPin, Navigation, Car, Train, Footprints } from "lucide-react";
+import { MapPin, Car, Train, Footprints } from "lucide-react";
 import {
   isLocationValid,
   getLocationRangeMessage,
@@ -11,18 +11,13 @@ const LocationInput = ({ onSubmit }) => {
     address: "",
     coordinates: null,
   });
-  const [endLocation, setEndLocation] = useState({
-    address: "",
-    coordinates: null,
-  });
   const [transportMode, setTransportMode] = useState("driving");
   const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
   const [error, setError] = useState("");
 
   const startLocationRef = useRef(null);
-  const endLocationRef = useRef(null);
 
-  // Improved Google Maps script loading - keeping your original code
+  // Improved Google Maps script loading
   useEffect(() => {
     if (window.google && window.google.maps && window.google.maps.places) {
       setGoogleMapsLoaded(true);
@@ -50,7 +45,7 @@ const LocationInput = ({ onSubmit }) => {
     };
   }, []);
 
-  // Modified autocomplete setup to include validation
+  // Initialize autocomplete for the start location input
   const initAutocomplete = (inputElement, setLocation) => {
     if (window.google?.maps?.places) {
       const autocomplete = new window.google.maps.places.Autocomplete(
@@ -87,15 +82,10 @@ const LocationInput = ({ onSubmit }) => {
     }
   };
 
-  // Keep your original useEffect for initialization
+  // Initialize autocomplete when Google Maps is loaded
   useEffect(() => {
-    if (googleMapsLoaded) {
-      if (startLocationRef.current) {
-        initAutocomplete(startLocationRef.current, setStartLocation);
-      }
-      if (endLocationRef.current) {
-        initAutocomplete(endLocationRef.current, setEndLocation);
-      }
+    if (googleMapsLoaded && startLocationRef.current) {
+      initAutocomplete(startLocationRef.current, setStartLocation);
     }
   }, [googleMapsLoaded]);
 
@@ -110,8 +100,6 @@ const LocationInput = ({ onSubmit }) => {
     onSubmit({
       start_location_name: startLocation.address,
       start_location_coords: startLocation.coordinates,
-      end_location_name: endLocation.address || undefined,
-      end_location_coords: endLocation.coordinates || undefined,
       transport_mode: transportMode,
     });
   };
@@ -138,7 +126,7 @@ const LocationInput = ({ onSubmit }) => {
         </Alert>
 
         <Row className="mb-3">
-          <Col md={6}>
+          <Col md={12}>
             <Form.Group controlId="startLocation">
               <Form.Label>
                 <MapPin size={20} className="me-2" />
@@ -155,23 +143,6 @@ const LocationInput = ({ onSubmit }) => {
                     ...startLocation,
                     address: e.target.value,
                   })
-                }
-              />
-            </Form.Group>
-          </Col>
-          <Col md={6}>
-            <Form.Group controlId="endLocation">
-              <Form.Label>
-                <Navigation size={20} className="me-2" />
-                End Location (Optional)
-              </Form.Label>
-              <Form.Control
-                type="text"
-                ref={endLocationRef}
-                placeholder="Enter end location"
-                value={endLocation.address}
-                onChange={(e) =>
-                  setEndLocation({ ...endLocation, address: e.target.value })
                 }
               />
             </Form.Group>

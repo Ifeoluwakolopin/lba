@@ -240,25 +240,21 @@ def calculate_route():
     """
     try:
         data = request.json
-        print("Received data:", data)  # Debug print
 
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
         # Log input validation
-        print("Validating input data...")
         start_location_name = data.get("start_location_name")
         start_location_coords = data.get("start_location_coords")
-
-        print(f"Start location: {start_location_name}")
-        print(f"Start coordinates: {start_location_coords}")
+        end_location_name = data.get("end_location_name", start_location_name)
+        end_location_coords = data.get("end_location_coords", start_location_coords)
 
         if not start_location_coords or len(start_location_coords) != 2:
             return jsonify({"error": "Valid start location coordinates required"}), 400
 
         # Log transport mode
         transport_mode = data.get("transport_mode", "driving")
-        print(f"Transport mode: {transport_mode}")
 
         if transport_mode not in ALLOWED_MODES:
             return (
@@ -272,6 +268,7 @@ def calculate_route():
 
         locations = {start_location_name: start_location_coords}
         locations.update(PREDEFINED_DESTINATIONS)
+        locations[end_location_name] = end_location_coords
 
         # Create ordered list
         location_names = [start_location_name] + list(PREDEFINED_DESTINATIONS.keys())
@@ -284,17 +281,12 @@ def calculate_route():
         tour_matrix, total_time = solve_tsp(distance_matrix)
 
         if tour_matrix is None:
-            print("TSP solver failed to find a solution")
             return jsonify({"error": "Could not find a valid route"}), 400
 
-        # Extract route
-        print("Extracting route...")
         route_indices = extract_tour(tour_matrix)
         optimal_route = [location_names[i] for i in route_indices]
-        print(f"Optimal route: {optimal_route}")
 
         # Get directions
-        print("Getting directions...")
         directions = get_directions(
             gmaps, route_indices, locations, mode=transport_mode
         )

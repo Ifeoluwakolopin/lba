@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { useLocation, Navigate } from "react-router-dom";
-import { Container, Row, Col, Card, Alert, Spinner } from "react-bootstrap";
+import { Container, Row, Col, Alert, Spinner } from "react-bootstrap";
 import RouteList from "../components/RouteList";
 import Header from "../components/Header";
 import Footer from "../components/Footer";
+import TripDetails from "../components/TripDetails";
 
 const RoutePage = () => {
   const location = useLocation();
   const [routeData, setRouteData] = useState(location.state?.routeData);
+  const [visitedLocations, setVisitedLocations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -41,20 +43,38 @@ const RoutePage = () => {
       setRouteData((prevData) => ({
         ...prevData,
         route: [
-          prevData.route[0], // Start location
           ...data.visited_locations,
           ...result.route.filter(
             (location) => !data.visited_locations.includes(location)
           ),
         ],
         remaining_locations: result.remaining_locations,
+        total_time: result.total_time,
       }));
+
+      setVisitedLocations(data.visited_locations);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
+
+  const handleVisitToggle = (location) => {
+    setVisitedLocations((prev) => {
+      if (prev.includes(location)) {
+        return prev.filter((loc) => loc !== location);
+      }
+      return [...prev, location].sort(
+        (a, b) => routeData.route.indexOf(a) - routeData.route.indexOf(b)
+      );
+    });
+  };
+
+  const currentLocation =
+    visitedLocations.length > 0
+      ? visitedLocations[visitedLocations.length - 1]
+      : routeData.route[0];
 
   return (
     <div className="min-h-screen d-flex flex-column bg-light">
@@ -86,38 +106,21 @@ const RoutePage = () => {
               <RouteList
                 routes={routeData.route}
                 transportMode={routeData.transport_mode}
+                visitedLocations={visitedLocations}
+                onVisitToggle={handleVisitToggle}
                 onRecalculate={handleRecalculate}
               />
             </Col>
             <Col md={4}>
-              <Card className="shadow-sm sticky-top" style={{ top: "1rem" }}>
-                <Card.Body>
-                  <h5>Trip Details</h5>
-                  <hr />
-                  <p>
-                    <strong>Starting Point:</strong>
-                    <br />
-                    {routeData.route[0]}
-                  </p>
-                  <p>
-                    <strong>Transport Mode:</strong>
-                    <br />
-                    {routeData.transport_mode.charAt(0).toUpperCase() +
-                      routeData.transport_mode.slice(1)}
-                  </p>
-                  <p>
-                    <strong>Total Stops:</strong>
-                    <br />
-                    {routeData.route.length - 2}
-                  </p>
-
-                  <hr />
-                  <p className="text-muted small mb-0">
-                    You can mark locations as visited and update your route at
-                    any time to get a new optimized path.
-                  </p>
-                </Card.Body>
-              </Card>
+              <TripDetails
+                startingPoint={routeData.route[0]}
+                currentLocation={currentLocation}
+                transportMode={routeData.transport_mode}
+                totalStops={routeData.route.length - 1}
+                stopsRemaining={
+                  routeData.route.length - 1 - visitedLocations.length
+                }
+              />
             </Col>
           </Row>
         </Container>

@@ -6,20 +6,23 @@ import RouteItem from "./RouteItem";
 const RouteList = ({ routes, transportMode, onRecalculate }) => {
   const [visitedLocations, setVisitedLocations] = useState([]);
 
+  // Remove duplicate start point at the end of the list
+  const filteredRoutes = routes.slice(0, -1);
+
   const handleLocationVisited = (location) => {
     setVisitedLocations((prev) => {
       if (prev.includes(location)) {
         return prev.filter((loc) => loc !== location);
       }
       return [...prev, location].sort(
-        (a, b) => routes.indexOf(a) - routes.indexOf(b)
+        (a, b) => filteredRoutes.indexOf(a) - filteredRoutes.indexOf(b)
       );
     });
   };
 
   const handleRecalculate = () => {
     const furthestVisited = visitedLocations.reduce((latest, current) => {
-      return routes.indexOf(current) > routes.indexOf(latest)
+      return filteredRoutes.indexOf(current) > filteredRoutes.indexOf(latest)
         ? current
         : latest;
     }, visitedLocations[0]);
@@ -31,7 +34,7 @@ const RouteList = ({ routes, transportMode, onRecalculate }) => {
     });
   };
 
-  if (!routes || routes.length === 0) {
+  if (!filteredRoutes || filteredRoutes.length === 0) {
     return (
       <Card>
         <Card.Body>
@@ -69,7 +72,7 @@ const RouteList = ({ routes, transportMode, onRecalculate }) => {
         </Card.Body>
       </Card>
 
-      {routes.map((location, index) => (
+      {filteredRoutes.map((location, index) => (
         <RouteItem
           key={location}
           location={location}
