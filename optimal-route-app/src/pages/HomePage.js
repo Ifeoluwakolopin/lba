@@ -1,27 +1,37 @@
 import React, { useState } from "react";
 import { Container, Row, Col, Card, Alert, Spinner } from "react-bootstrap";
-import { MapPin, Navigation2 } from "lucide-react";
+import { MapPin, Clock, Compass } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import LocationInput from "../components/LocationInput";
+import Footer from "../components/Footer";
+import Header from "../components/Header";
 
-const TRAVEL_FACTS = [
+const FEATURES = [
   {
     icon: MapPin,
     color: "blue",
-    title: "SF Attractions Tour",
+    title: "Curated SF Attractions",
     description:
-      "Visit the most iconic locations in San Francisco with our optimized route planning.",
+      "Visit the city's most iconic locations including Chinatown, Pier 39, Palace of Fine Arts, and more.",
   },
   {
-    icon: Navigation2,
+    icon: Compass,
     color: "green",
-    title: "Flexible Travel",
+    title: "Smart Route Planning",
     description:
-      "Choose your preferred mode of transport - drive, take public transit, or walk through the city.",
+      "Our algorithm finds the most efficient route to help you make the most of your time.",
+  },
+  {
+    icon: Clock,
+    color: "purple",
+    title: "Flexible Travel Options",
+    description:
+      "Choose between driving, public transit, or walking based on your preferences.",
   },
 ];
 
 const HomePage = () => {
-  const [optimizedRoute, setOptimizedRoute] = useState(null);
+  const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +51,7 @@ const HomePage = () => {
       }
 
       const result = await response.json();
-      setOptimizedRoute(result);
+      navigate("/route", { state: { routeData: result } });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -50,27 +60,15 @@ const HomePage = () => {
   };
 
   return (
-    <div className="min-h-screen d-flex flex-column bg-light">
-      {/* Header */}
-      <header className="bg-primary text-white py-4 shadow-sm">
-        <Container>
-          <Row className="align-items-center">
-            <Col>
-              <h1 className="d-flex align-items-center gap-2 mb-0">
-                <MapPin size={32} />
-                San Francisco Tour Planner
-              </h1>
-              <p className="mb-0 mt-2 text-white-50">
-                Let us plan your perfect day touring San Francisco's top
-                attractions
-              </p>
-            </Col>
-          </Row>
-        </Container>
-      </header>
+    <div className="min-h-screen d-flex flex-column">
+      {/* Hero Section */}
+      <Header
+        title="San Francisco Tour Planner"
+        subtitle="Let us plan your perfect day touring San Francisco's top attractions"
+      />
 
       {/* Main Content */}
-      <main className="flex-grow-1 py-4">
+      <main className="flex-grow-1 py-5 bg-light">
         <Container>
           {error && (
             <Alert variant="danger" dismissible onClose={() => setError(null)}>
@@ -78,100 +76,59 @@ const HomePage = () => {
             </Alert>
           )}
 
-          <Card className="shadow-sm mb-4">
-            <Card.Body>
-              <LocationInput onSubmit={handleRouteSubmit} />
-            </Card.Body>
-          </Card>
+          <Row className="justify-content-center mb-5">
+            <Col lg={10}>
+              <Card className="shadow-lg border-0">
+                <Card.Body className="p-4">
+                  <h2 className="text-center mb-4">Plan Your Tour</h2>
+                  <LocationInput onSubmit={handleRouteSubmit} />
+                  {loading && (
+                    <div className="text-center mt-4">
+                      <Spinner
+                        animation="border"
+                        role="status"
+                        variant="primary"
+                      />
+                      <p className="mt-2 text-muted">
+                        Creating your perfect route...
+                      </p>
+                    </div>
+                  )}
+                </Card.Body>
+              </Card>
+            </Col>
+          </Row>
 
-          {loading && (
-            <div className="text-center py-4">
-              <Spinner animation="border" role="status" variant="primary" />
-              <p className="mt-2 text-muted">Optimizing your route...</p>
-            </div>
-          )}
+          <Row className="mb-5">
+            <Col className="text-center">
+              <h2 className="mb-4">Why Use Our Tour Planner?</h2>
+            </Col>
+          </Row>
 
-          {optimizedRoute && (
-            <Card className="shadow-sm">
-              <Card.Body>
-                <h3 className="mb-4">Your Optimized Route</h3>
-
-                <div className="mb-4">
-                  <h5 className="text-primary">Stops in Order:</h5>
-                  <ol className="list-group list-group-numbered">
-                    {optimizedRoute.route.map((location, index) => (
-                      <li key={index} className="list-group-item">
-                        {location}
-                      </li>
-                    ))}
-                  </ol>
-                </div>
-
-                <div className="mb-4">
-                  <h5 className="text-primary">Estimated Duration:</h5>
-                  <p className="ms-3">
-                    {Math.floor(optimizedRoute.total_time / 3600)} hours{" "}
-                    {Math.floor((optimizedRoute.total_time % 3600) / 60)}{" "}
-                    minutes
-                  </p>
-                </div>
-
-                <div>
-                  <h5 className="text-primary">Detailed Directions:</h5>
-                  <div className="bg-light p-3 rounded">
-                    {optimizedRoute.directions
-                      .split("\n")
-                      .map((line, index) => (
-                        <p
-                          key={index}
-                          className={
-                            line.startsWith("---")
-                              ? "fw-bold mt-3 mb-2"
-                              : "ms-3 mb-2"
-                          }
-                        >
-                          {line}
-                        </p>
-                      ))}
-                  </div>
-                </div>
-              </Card.Body>
-            </Card>
-          )}
-
-          {!optimizedRoute && !loading && (
-            <Row className="mt-4">
-              {TRAVEL_FACTS.map((fact, index) => (
-                <Col md={6} key={index} className="mb-4">
-                  <Card className="h-100 shadow-sm">
-                    <Card.Body>
-                      <div
-                        className={`bg-${fact.color}-100 rounded-circle p-3 d-inline-flex mb-3`}
-                      >
-                        <fact.icon
-                          size={24}
-                          className={`text-${fact.color}-600`}
-                        />
-                      </div>
-                      <h4>{fact.title}</h4>
-                      <p className="text-muted mb-0">{fact.description}</p>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              ))}
-            </Row>
-          )}
+          <Row className="justify-content-center">
+            {FEATURES.map((feature, index) => (
+              <Col md={4} key={index} className="mb-4">
+                <Card className="h-100 border-0 shadow-sm hover-shadow transition">
+                  <Card.Body className="text-center p-4">
+                    <div
+                      className={`bg-${feature.color}-100 rounded-circle p-3 d-inline-flex mb-4`}
+                    >
+                      <feature.icon
+                        size={24}
+                        className={`text-${feature.color}-600`}
+                      />
+                    </div>
+                    <h4 className="mb-3">{feature.title}</h4>
+                    <p className="text-muted mb-0">{feature.description}</p>
+                  </Card.Body>
+                </Card>
+              </Col>
+            ))}
+          </Row>
         </Container>
       </main>
 
-      {/* Footer */}
-      <footer className="bg-dark text-white-50 py-3 mt-auto">
-        <Container>
-          <small className="d-block text-center">
-            © {new Date().getFullYear()} SF Tour Planner. All rights reserved.
-          </small>
-        </Container>
-      </footer>
+      <Footer />
     </div>
   );
 };

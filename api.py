@@ -348,6 +348,7 @@ def recalculate_route():
     """
     try:
         data = request.json
+        print(data)
         if not data:
             return jsonify({"error": "No data provided"}), 400
 

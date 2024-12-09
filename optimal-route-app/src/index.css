@@ -93,3 +93,126 @@ body {
   font-size: 1.25rem;
   line-height: 1.75rem;
 }
+
+/* Global styles */
+.hover-shadow {
+  transition: box-shadow 0.3s ease-in-out;
+}
+
+.hover-shadow:hover {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.transition {
+  transition: all 0.3s ease-in-out;
+}
+
+/* Route page specific styles */
+.sticky-top {
+  top: 1rem;
+  z-index: 1020;
+}
+
+/* Utility classes */
+.min-h-screen {
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Progress bar animation */
+.progress-bar {
+  transition: width 0.6s ease;
+}
+
+/* Page transitions */
+.fade-enter {
+  opacity: 0;
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transition: opacity 300ms ease-in;
+}
+
+.fade-exit {
+  opacity: 1;
+}
+
+.fade-exit-active {
+  opacity: 0;
+  transition: opacity 300ms ease-in;
+}
+
+.custom-checkbox .form-check-input {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #6c757d;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.custom-checkbox .form-check-input:checked {
+  background-color: #198754;
+  border-color: #198754;
+}
+
+.border-success {
+  border-color: #198754 !important;
+}
+
+/* Hover effect for the card */
+.card.shadow-sm {
+  transition: all 0.2s ease-in-out;
+}
+
+.card.shadow-sm:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Remove button styling from chevron container */
+.chevron-icon {
+  display: flex;
+  align-items: center;
+  color: #6c757d;
+}
+
+/* Ensure checkbox remains clickable and visible */
+.custom-checkbox {
+  position: relative;
+  z-index: 2;
+}
+
+/* Prevent text selection when clicking card */
+.card {
+  user-select: none;
+}
+
+.hover-brighten {
+  transition: filter 0.2s ease-in-out;
+}
+
+.hover-brighten:hover {
+  filter: brightness(1.2);
+}
+
+.hover-brighten:active {
+  filter: brightness(0.9);
+}
