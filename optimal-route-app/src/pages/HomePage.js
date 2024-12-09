@@ -35,11 +35,13 @@ const HomePage = () => {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
 
+  const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   const handleRouteSubmit = async (data) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch("http://127.0.0.1:5000/calculate-route", {
+      const response = await fetch(`${API_BASE_URL}/calculate-route`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
