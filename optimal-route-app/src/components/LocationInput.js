@@ -16,8 +16,9 @@ const LocationInput = ({ onSubmit }) => {
   const [error, setError] = useState("");
 
   const startLocationRef = useRef(null);
+  const autocompleteRef = useRef(null); // Ref for the autocomplete instance
 
-  // Improved Google Maps script loading
+  // Load Google Maps script
   useEffect(() => {
     if (window.google && window.google.maps && window.google.maps.places) {
       setGoogleMapsLoaded(true);
@@ -45,36 +46,37 @@ const LocationInput = ({ onSubmit }) => {
     };
   }, []);
 
-  // Initialize autocomplete for the start location input
-  const initAutocomplete = (inputElement, setLocation) => {
+  // Initialize autocomplete
+  const initAutocomplete = () => {
     if (window.google?.maps?.places) {
-      const autocomplete = new window.google.maps.places.Autocomplete(
-        inputElement,
+      autocompleteRef.current = new window.google.maps.places.Autocomplete(
+        startLocationRef.current,
         {
           types: ["geocode"],
           fields: ["address_components", "formatted_address", "geometry"],
         }
       );
 
-      autocomplete.addListener("place_changed", () => {
-        const place = autocomplete.getPlace();
+      autocompleteRef.current.addListener("place_changed", () => {
+        const place = autocompleteRef.current.getPlace();
         if (place.geometry) {
           const coordinates = [
             place.geometry.location.lat(),
             place.geometry.location.lng(),
           ];
 
-          // Add validation here
+          // Validate location
           const validationResult = isLocationValid(coordinates);
           if (!validationResult.isValid) {
             setError(validationResult.message);
-            setLocation({ address: "", coordinates: null });
+            setStartLocation({ address: "", coordinates: null });
             return;
           }
 
-          setLocation({
+          // Update location state
+          setStartLocation({
             address: place.formatted_address,
-            coordinates: coordinates,
+            coordinates,
           });
           setError(""); // Clear any existing error
         }
@@ -85,9 +87,17 @@ const LocationInput = ({ onSubmit }) => {
   // Initialize autocomplete when Google Maps is loaded
   useEffect(() => {
     if (googleMapsLoaded && startLocationRef.current) {
-      initAutocomplete(startLocationRef.current, setStartLocation);
+      initAutocomplete();
     }
   }, [googleMapsLoaded]);
+
+  const handleInputChange = (e) => {
+    setStartLocation({
+      ...startLocation,
+      address: e.target.value, // Only update the address field
+    });
+    setError(""); // Clear any error
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -138,12 +148,7 @@ const LocationInput = ({ onSubmit }) => {
                 placeholder="Enter start location"
                 required
                 value={startLocation.address}
-                onChange={(e) =>
-                  setStartLocation({
-                    ...startLocation,
-                    address: e.target.value,
-                  })
-                }
+                onChange={handleInputChange} // Ensure user input is handled properly
               />
             </Form.Group>
           </Col>
