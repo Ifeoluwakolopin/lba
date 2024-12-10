@@ -2,53 +2,67 @@
   "Chinatown San Francisco": {
     "description": "The largest Chinatown outside of Asia and oldest in North America, featuring traditional architecture, authentic cuisine, and vibrant culture.",
     "images": [
-      "/images/chinatown1.jpg",
-      "/images/chinatown2.jpg",
-      "/images/chinatown3.jpg"
+      "/images/chinatown_1.jpg",
+      "/images/chinatown_2.jpg",
+      "/images/chinatown_3.jpg"
     ],
     "tips": "Visit during lunch for the best food options. Don't miss the fortune cookie factory!"
   },
   "California Academy of Sciences": {
     "description": "A world-class natural history museum, planetarium, and aquarium all under one living roof.",
     "images": [
-      "/images/cas1.jpg",
-      "/images/cas2.jpg",
-      "/images/cas3.jpg"
+      "/images/california_academy_of_science_1.jpg",
+      "/images/california_academy_of_science_2.jpg",
+      "/images/california_academy_of_science_3.jpg"
     ],
     "tips": "Thursday nights are adults-only NightLife events. Buy tickets online to avoid queues."
   },
   "Pier 39": {
     "description": "Waterfront complex featuring shops, restaurants, and entertainment, famous for its sea lion colony and bay views.",
     "images": [
-      "/images/pier391.jpg",
-      "/images/pier392.jpg",
-      "/images/pier393.jpg"
+      "/images/pier_39_1.jpg",
+      "/images/pier_39_2.jpg",
+      "/images/pier_39_3.jpg"
     ],
     "tips": "Visit early morning or late afternoon to see sea lions. Great spot for sunset photos of the Golden Gate Bridge."
   },
   "Painted Ladies": {
     "description": "a stunning row of Victorian houses in San Francisco, are iconic symbols of the city's colorful past and architectural beauty.",
-    "images": [],
+    "images": [
+      "/images/painted_ladies_1.jpg",
+      "/images/painted_ladies_2.jpg"
+    ],
     "tips": "visit early in the morning or late in the afternoon when the soft light enhances their vibrant colors."
   },
   "Exploratorium": {
     "description": "A renowned science museum in San Francisco, offering interactive exhibits that spark curiosity and inspire learning for all ages.",
-    "images": [],
+    "images": [
+      "/images/exploratorium_1.jpg",
+      "/images/exploratorium_2.jpg",
+      "/images/exploratorium_3.jpg"
+    ],
     "tips": "Plan your day around specific exhibits or shows, and don't hesitate to ask the knowledgeable staff for recommendations."
   },
   "Lombard Street": {
     "description": "Lombard Street, famously known as the \"Crookedest Street in the World\" is a winding, colorful street in San Francisco that offers stunning views of the city.",
-    "images": [],
+    "images": [
+      "/images/lombard_street_1.jpg"
+    ],
     "tips": "For the best photo opportunities on Lombard Street, visit during the morning or late afternoon when the lighting is softer and the crowds are smaller."
   },
   "Palace of Fine Arts": {
     "description": "The Palace of Fine Arts, a stunning Beaux-Arts structure, is a historic landmark in San Francisco, offering serene gardens and breathtaking architecture.",
-    "images": [],
+    "images": [
+      "/images/palace_of_fine_arts_1.jpg"
+    ],
     "tips": "Take a leisurely stroll through its serene gardens and admire the stunning reflections in the lagoon."
   },
   "San Francisco City Hall": {
     "description": "San Francisco City Hall, with its majestic Beaux-Arts architecture and rich history, offers visitors a glimpse into the city's vibrant civic life and a stunning backdrop for exploring democracy in action",
-    "images": [],
+    "images": [
+      "/images/san_francisco_city_hall_1.jpg",
+      "/images/san_francisco_city_hall_2.jpg"
+    ],
     "tips": "Plan your visit during business hours for a chance to observe government proceedings, and don't miss the breathtaking dome—the fifth largest in the world!"
   }
 }
