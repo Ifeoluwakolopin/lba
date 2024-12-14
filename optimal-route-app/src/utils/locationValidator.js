@@ -1,33 +1,30 @@
-// src/utils/locationValidator.js
-
-// Define a bounding box for Northern/Central California
-// This is a rough approximation that covers the main drivable areas from SF
-const CA_BOUNDS = {
-  north: 42.009518, // Oregon border
-  south: 35.002085, // roughly Bakersfield
-  west: -124.409591, // Pacific Coast
-  east: -120.005469, // roughly Sierra Nevada
+const BOUNDS = {
+  san_francisco: {
+    north: 42.009518,
+    south: 35.002085,
+    west: -124.409591,
+    east: -120.005469,
+  },
+  seoul: {
+    north: 37.7019,
+    south: 37.4286,
+    west: 126.7642,
+    east: 127.1836,
+  },
 };
 
-// Additional constraint for reasonable driving distance from SF
-const SF_CENTER = {
-  lat: 37.7749,
-  lng: -122.4194,
+const CITY_CENTERS = {
+  san_francisco: { lat: 37.7749, lng: -122.4194 },
+  seoul: { lat: 37.5665, lng: 126.978 },
 };
 
-// Maximum reasonable driving distance from SF (roughly 200 miles or ~320 km)
-const MAX_DISTANCE_FROM_SF = 320; // kilometers
+const MAX_DISTANCES = {
+  san_francisco: 320,
+  seoul: 320,
+};
 
-/**
- * Calculate distance between two points using Haversine formula
- * @param {number} lat1 - Latitude of first point
- * @param {number} lon1 - Longitude of first point
- * @param {number} lat2 - Latitude of second point
- * @param {number} lon2 - Longitude of second point
- * @returns {number} Distance in kilometers
- */
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
-  const R = 6371; // Earth's radius in kilometers
+  const R = 6371;
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
   const dLon = ((lon2 - lon1) * Math.PI) / 180;
   const a =
@@ -40,12 +37,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
   return R * c;
 };
 
-/**
- * Check if coordinates are within acceptable range for SF tour
- * @param {[number, number]} coordinates - [latitude, longitude]
- * @returns {{isValid: boolean, message: string}} Validation result and message
- */
-export const isLocationValid = (coordinates) => {
+export const isLocationValid = (coordinates, city) => {
   if (!coordinates || coordinates.length !== 2) {
     return {
       isValid: false,
@@ -53,34 +45,52 @@ export const isLocationValid = (coordinates) => {
     };
   }
 
-  const [lat, lng] = coordinates;
+  const normalizedCity = city.toLowerCase();
 
-  // Check if within California bounding box
   if (
-    lat < CA_BOUNDS.south ||
-    lat > CA_BOUNDS.north ||
-    lng < CA_BOUNDS.west ||
-    lng > CA_BOUNDS.east
+    !BOUNDS[normalizedCity] ||
+    !CITY_CENTERS[normalizedCity] ||
+    !MAX_DISTANCES[normalizedCity]
   ) {
     return {
       isValid: false,
-      message: "Location must be within California",
+      message: "Invalid city specified for validation",
     };
   }
 
-  // Check distance from SF
-  const distanceFromSF = calculateDistance(
-    lat,
-    lng,
-    SF_CENTER.lat,
-    SF_CENTER.lng
-  );
+  const [lat, lng] = coordinates;
+  const cityBounds = BOUNDS[normalizedCity];
+  const cityCenter = CITY_CENTERS[normalizedCity];
+  const maxDistance = MAX_DISTANCES[normalizedCity];
 
-  if (distanceFromSF > MAX_DISTANCE_FROM_SF) {
+  if (
+    lat < cityBounds.south ||
+    lat > cityBounds.north ||
+    lng < cityBounds.west ||
+    lng > cityBounds.east
+  ) {
     return {
       isValid: false,
-      message:
-        "Location is too far from San Francisco for a day tour (maximum 200 miles)",
+      message: `Location must be within the boundaries of ${normalizedCity.replace(
+        "_",
+        " "
+      )}`,
+    };
+  }
+
+  const distanceFromCenter = calculateDistance(
+    lat,
+    lng,
+    cityCenter.lat,
+    cityCenter.lng
+  );
+  if (distanceFromCenter > maxDistance) {
+    return {
+      isValid: false,
+      message: `Location is too far from ${normalizedCity.replace(
+        "_",
+        " "
+      )} for a day tour (maximum ${maxDistance} km)`,
     };
   }
 
@@ -90,10 +100,12 @@ export const isLocationValid = (coordinates) => {
   };
 };
 
-/**
- * Get a friendly message about valid location range
- * @returns {string} User-friendly message about valid locations
- */
-export const getLocationRangeMessage = () => {
-  return "Please select a location in Northern/Central California, within 200 miles of San Francisco.";
+export const getLocationRangeMessage = (city) => {
+  if (!city || !BOUNDS[city] || !CITY_CENTERS[city] || !MAX_DISTANCES[city]) {
+    return "Invalid city specified for range message.";
+  }
+
+  const cityName = city.replace("_", " ");
+  const maxDistance = MAX_DISTANCES[city];
+  return `Please select a location within the valid range of ${cityName}, no more than ${maxDistance} kilometers from its center.`;
 };

@@ -7,6 +7,8 @@ import {
 } from "react-router-dom";
 import { Spinner } from "react-bootstrap";
 import HomePage from "./pages/HomePage";
+import SanFranciscoPage from "./pages/SanFranciscoPage";
+import SeoulPage from "./pages/SeoulPage";
 import RoutePage from "./pages/RoutePage";
 import { loadGoogleMaps } from "./utils/googleMapsLoader";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -49,6 +51,8 @@ const App = () => {
     <Router>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/explore/san_francisco" element={<SanFranciscoPage />} />
+        <Route path="/explore/seoul" element={<SeoulPage />} />
         <Route path="/route" element={<RoutePage />} />
         {/* Redirect any unknown routes to home */}
         <Route path="*" element={<Navigate to="/" replace />} />

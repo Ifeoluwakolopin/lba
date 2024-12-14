@@ -1,12 +1,13 @@
 import os
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import numpy as np
 import time
-import googlemaps
-from dotenv import load_dotenv
-import cvxpy as cp
 from datetime import datetime
+
+import cvxpy as cp
+import googlemaps
+import numpy as np
+from dotenv import load_dotenv
+from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 # Load environment variables
 load_dotenv()
@@ -20,7 +21,10 @@ CORS(app)
 
 
 def get_distance_matrix(gmaps, coordinates, mode="driving", buffer_minutes=5):
-
+    """
+    Build the distance matrix between locations using Google Maps API.
+    Includes robust handling for missing data and fallback strategies.
+    """
     departure_time = (
         int(time.time()) + buffer_minutes * 60 if mode == "transit" else "now"
     )
@@ -34,8 +38,8 @@ def get_distance_matrix(gmaps, coordinates, mode="driving", buffer_minutes=5):
                 matrix[i][j] = 0  # Zero time for same location
                 continue
 
-            # Try to fetch time for the given mode
             try:
+                # Fetch travel time for the specified mode
                 result = gmaps.distance_matrix(
                     origins=[coordinates[i]],
                     destinations=[coordinates[j]],
@@ -49,30 +53,26 @@ def get_distance_matrix(gmaps, coordinates, mode="driving", buffer_minutes=5):
                         "value"
                     ]  # Travel time in seconds
                 else:
-                    raise Exception(f"{mode.capitalize()} not available")
-            except Exception as e:
-                # Handle transit-specific fallback to walking
-                if mode == "transit":
-                    print(
-                        f"Transit unavailable between location {i} and {j}. Falling back to walking."
+                    raise ValueError(f"Route not available: {element['status']}")
+            except Exception:
+                # Fallback to walking mode if transit or driving fails
+                try:
+                    result = gmaps.distance_matrix(
+                        origins=[coordinates[i]],
+                        destinations=[coordinates[j]],
+                        mode="walking",
                     )
-                    try:
-                        result = gmaps.distance_matrix(
-                            origins=[coordinates[i]],
-                            destinations=[coordinates[j]],
-                            mode="walking",
-                        )
-                        element = result["rows"][0]["elements"][0]
-                        if element["status"] == "OK":
-                            matrix[i][j] = element["duration"][
-                                "value"
-                            ]  # Walking time in seconds
-                        else:
-                            matrix[i][j] = np.inf  # No valid route
-                    except:
-                        matrix[i][j] = np.inf  # No valid route
-                else:
-                    matrix[i][j] = np.inf  # Assign a large value if no route is found
+                    element = result["rows"][0]["elements"][0]
+                    if element["status"] == "OK":
+                        matrix[i][j] = element["duration"]["value"]
+                    else:
+                        matrix[i][j] = np.inf  # Mark as unreachable
+                except:
+                    matrix[i][j] = np.inf  # Mark as unreachable if walking also fails
+
+    # Replace np.inf with a large penalty value to allow the solver to work
+    penalty = 1e6  # High penalty for unreachable routes
+    matrix[np.isinf(matrix)] = penalty
 
     return matrix
 
@@ -219,17 +219,28 @@ def parse_directions(directions, route):
     return "\n".join(parsed_directions)
 
 
-# Predefined locations from the original script
 PREDEFINED_DESTINATIONS = {
-    "Chinatown San Francisco": (37.792597, -122.406063),
-    "California Academy of Sciences": (37.76986, -122.46609),
-    "Pier 39": (37.80867, -122.40982),
-    "Painted Ladies": (37.77625, -122.43275),
-    "Exploratorium": (37.80166, -122.39734),
-    "Lombard Street": (37.80201, -122.41955),
-    "Palace of Fine Arts": (37.80293, -122.44842),
-    "San Francisco City Hall": (37.77927, -122.41924),
+    "san_francisco": {
+        "Chinatown San Francisco": (37.792597, -122.406063),
+        "California Academy of Sciences": (37.76986, -122.46609),
+        "Pier 39": (37.80867, -122.40982),
+        "Painted Ladies": (37.77625, -122.43275),
+        "Exploratorium": (37.80166, -122.39734),
+        "Lombard Street": (37.80201, -122.41955),
+        "Palace of Fine Arts": (37.80293, -122.44842),
+        "San Francisco City Hall": (37.77927, -122.41924),
+    },
+    "seoul": {
+        "ICN": (37.458896, 126.441946),
+        "DDP": (37.567123, 127.010004),
+        "COEX": (37.511768, 127.059156),
+        "Namsan Mountain Tower": (37.551225, 126.988188),
+        "Seoul Station": (37.554859, 126.970783),
+        "Jamsil Lotte Tower": (37.512538, 127.102310),
+    },
 }
+
+ALLOWED_CITIES = list(PREDEFINED_DESTINATIONS.keys())
 
 ALLOWED_MODES = ["driving", "transit", "walking"]
 
@@ -237,7 +248,7 @@ ALLOWED_MODES = ["driving", "transit", "walking"]
 @app.route("/calculate-route", methods=["POST"])
 def calculate_route():
     """
-    Calculate optimal route through predefined SF destinations.
+    Calculate the optimal route through predefined destinations for a given city.
     """
     try:
         data = request.json
@@ -245,16 +256,27 @@ def calculate_route():
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
-        # Log input validation
+        # Validate city input
+        city = data.get("city", "").lower()
+        if city not in PREDEFINED_DESTINATIONS:
+            return (
+                jsonify(
+                    {
+                        "error": f"Invalid city. Allowed cities: {', '.join(ALLOWED_CITIES)}"
+                    }
+                ),
+                400,
+            )
+
+        # Validate start location
         start_location_name = data.get("start_location_name")
         start_location_coords = data.get("start_location_coords")
 
         if not start_location_coords or len(start_location_coords) != 2:
             return jsonify({"error": "Valid start location coordinates required"}), 400
 
-        # Log transport mode
-        transport_mode = data.get("transport_mode", "driving")
-
+        # Validate transport mode
+        transport_mode = data.get("transport_mode", "transit")
         if transport_mode not in ALLOWED_MODES:
             return (
                 jsonify(
@@ -265,29 +287,30 @@ def calculate_route():
                 400,
             )
 
+        # Fetch city-specific destinations
+        city_destinations = PREDEFINED_DESTINATIONS[city]
         locations = {start_location_name: start_location_coords}
-        locations.update(PREDEFINED_DESTINATIONS)
+        locations.update(city_destinations)
 
         # Create ordered list
-        location_names = [start_location_name] + list(PREDEFINED_DESTINATIONS.keys())
-
+        location_names = [start_location_name] + list(city_destinations.keys())
         coordinates = [locations[name] for name in location_names]
 
+        # Calculate distance matrix
         distance_matrix = get_distance_matrix(gmaps, coordinates, mode=transport_mode)
 
         # Solve TSP
         tour_matrix, total_time = solve_tsp(distance_matrix)
-
         if tour_matrix is None:
             return jsonify({"error": "Could not find a valid route"}), 400
 
+        # Extract optimal route
         route_indices = extract_tour(tour_matrix)
         optimal_route = [location_names[i] for i in route_indices]
 
-        # Create route with coordinates
+        # Create route with coordinates and fetch directions
         route_with_coords = [
-            {"name": location, "coordinates": locations[location]}
-            for location in optimal_route
+            {"name": loc, "coordinates": locations[loc]} for loc in optimal_route
         ]
         directions_raw = get_directions(
             gmaps, route_indices, locations, mode=transport_mode
@@ -301,35 +324,46 @@ def calculate_route():
                 "directions": parsed_directions,
                 "directions_raw": directions_raw,
                 "transport_mode": transport_mode,
+                "city": city,
                 "current_time": datetime.now().isoformat(),
             }
         )
 
     except Exception as e:
-        import traceback
-
-        print("Error occurred:")
-        print(traceback.format_exc())
         return jsonify({"error": str(e)}), 500
 
 
 @app.route("/recalculate-route", methods=["POST"])
 def recalculate_route():
+    """
+    Recalculate the optimal route from the current location, excluding already visited destinations.
+    """
     try:
         data = request.json
+
         if not data:
             return jsonify({"error": "No data provided"}), 400
 
+        # Validate city input
+        city = data.get("city", "").lower()
+        if city not in PREDEFINED_DESTINATIONS:
+            return (
+                jsonify(
+                    {
+                        "error": f"Invalid city. Allowed cities: {', '.join(ALLOWED_CITIES)}"
+                    }
+                ),
+                400,
+            )
+
+        # Validate current location
         current_location_name = data.get("current_location_name")
-        if (
-            not current_location_name
-            or current_location_name not in PREDEFINED_DESTINATIONS
-        ):
-            return jsonify({"error": "Valid current location required"}), 400
+        if not current_location_name:
+            return jsonify({"error": "Valid current location name required"}), 400
 
+        # Validate visited locations
         visited_locations = set(data.get("visited_locations", []))
-        transport_mode = data.get("transport_mode", "driving")
-
+        transport_mode = data.get("transport_mode", "transit")
         if transport_mode not in ALLOWED_MODES:
             return (
                 jsonify(
@@ -340,12 +374,15 @@ def recalculate_route():
                 400,
             )
 
+        # Fetch city-specific destinations and exclude visited ones
+        city_destinations = PREDEFINED_DESTINATIONS[city]
         remaining_destinations = {
             name: coords
-            for name, coords in PREDEFINED_DESTINATIONS.items()
+            for name, coords in city_destinations.items()
             if name not in visited_locations
         }
 
+        # Handle case when all locations are visited
         if not remaining_destinations:
             return jsonify(
                 {
@@ -353,9 +390,7 @@ def recalculate_route():
                     "route": [
                         {
                             "name": current_location_name,
-                            "coordinates": PREDEFINED_DESTINATIONS[
-                                current_location_name
-                            ],
+                            "coordinates": city_destinations[current_location_name],
                         }
                     ],
                     "total_time": 0,
@@ -364,29 +399,28 @@ def recalculate_route():
                 }
             )
 
-        locations = {
-            current_location_name: PREDEFINED_DESTINATIONS[current_location_name]
-        }
+        # Create locations map
+        locations = {current_location_name: city_destinations[current_location_name]}
         locations.update(remaining_destinations)
-
         location_names = [current_location_name] + list(remaining_destinations.keys())
         coordinates = [locations[name] for name in location_names]
 
+        # Calculate distance matrix
         distance_matrix = get_distance_matrix(gmaps, coordinates, mode=transport_mode)
-        tour_matrix, total_time = solve_tsp(distance_matrix)
 
+        # Solve TSP
+        tour_matrix, total_time = solve_tsp(distance_matrix)
         if tour_matrix is None:
             return jsonify({"error": "Could not find a valid route"}), 400
 
+        # Extract optimal route
         route_indices = extract_tour(tour_matrix)
         optimal_route = [location_names[i] for i in route_indices]
 
-        # Create route with coordinates
+        # Create route with coordinates and fetch directions
         route_with_coords = [
-            {"name": location, "coordinates": locations[location]}
-            for location in optimal_route
+            {"name": loc, "coordinates": locations[loc]} for loc in optimal_route
         ]
-
         directions_raw = get_directions(
             gmaps, route_indices, locations, mode=transport_mode
         )
@@ -399,6 +433,7 @@ def recalculate_route():
                 "directions": parsed_directions,
                 "directions_raw": directions_raw,
                 "transport_mode": transport_mode,
+                "city": city,
                 "current_time": datetime.now().isoformat(),
                 "remaining_locations": [
                     {"name": name, "coordinates": coords}

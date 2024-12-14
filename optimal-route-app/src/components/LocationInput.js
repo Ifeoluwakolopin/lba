@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Form, Button, Container, Row, Col, Alert } from "react-bootstrap";
 import { MapPin, Car, Train, Footprints } from "lucide-react";
 import {
@@ -6,27 +6,28 @@ import {
   getLocationRangeMessage,
 } from "../utils/locationValidator";
 
-const LocationInput = ({ onSubmit }) => {
+const GOOGLE_MAPS_API_KEY = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+
+const LocationInput = ({ onSubmit, availableModes, city }) => {
   const [startLocation, setStartLocation] = useState({
     address: "",
     coordinates: null,
   });
-  const [transportMode, setTransportMode] = useState("driving");
-  const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
+  const [transportMode, setTransportMode] = useState(availableModes[0]);
   const [error, setError] = useState("");
+  const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
 
   const startLocationRef = useRef(null);
-  const autocompleteRef = useRef(null); // Ref for the autocomplete instance
+  const autocompleteRef = useRef(null);
 
-  // Load Google Maps script
-  useEffect(() => {
-    if (window.google && window.google.maps && window.google.maps.places) {
+  const loadGoogleMapsScript = () => {
+    if (window.google?.maps?.places) {
       setGoogleMapsLoaded(true);
       return;
     }
 
     const script = document.createElement("script");
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.REACT_APP_GOOGLE_MAPS_API_KEY}&libraries=places`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=places`;
     script.async = true;
     script.defer = true;
 
@@ -39,16 +40,15 @@ const LocationInput = ({ onSubmit }) => {
       setGoogleMapsLoaded(false);
     };
 
-    document.body.appendChild(script);
+    document.head.appendChild(script);
+  };
 
-    return () => {
-      document.body.removeChild(script);
-    };
+  useEffect(() => {
+    loadGoogleMapsScript();
   }, []);
 
-  // Initialize autocomplete
-  const initAutocomplete = () => {
-    if (window.google?.maps?.places) {
+  useEffect(() => {
+    if (googleMapsLoaded && window.google?.maps?.places) {
       autocompleteRef.current = new window.google.maps.places.Autocomplete(
         startLocationRef.current,
         {
@@ -64,49 +64,30 @@ const LocationInput = ({ onSubmit }) => {
             place.geometry.location.lat(),
             place.geometry.location.lng(),
           ];
-
-          // Validate location
-          const validationResult = isLocationValid(coordinates);
+          const validationResult = isLocationValid(coordinates, city);
           if (!validationResult.isValid) {
             setError(validationResult.message);
             setStartLocation({ address: "", coordinates: null });
             return;
           }
-
-          // Update location state
-          setStartLocation({
-            address: place.formatted_address,
-            coordinates,
-          });
-          setError(""); // Clear any existing error
+          setStartLocation({ address: place.formatted_address, coordinates });
+          setError("");
         }
       });
     }
-  };
-
-  // Initialize autocomplete when Google Maps is loaded
-  useEffect(() => {
-    if (googleMapsLoaded && startLocationRef.current) {
-      initAutocomplete();
-    }
-  }, [googleMapsLoaded]);
+  }, [googleMapsLoaded, city]);
 
   const handleInputChange = (e) => {
-    setStartLocation({
-      ...startLocation,
-      address: e.target.value, // Only update the address field
-    });
-    setError(""); // Clear any error
+    setStartLocation({ ...startLocation, address: e.target.value });
+    setError("");
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
     if (!startLocation.coordinates) {
       setError("Please select a start location");
       return;
     }
-
     onSubmit({
       start_location_name: startLocation.address,
       start_location_coords: startLocation.coordinates,
@@ -114,32 +95,26 @@ const LocationInput = ({ onSubmit }) => {
     });
   };
 
-  if (!googleMapsLoaded) {
-    return (
-      <Container className="mt-4 text-center">
-        <p>Loading Google Maps...</p>
-      </Container>
-    );
-  }
-
   return (
-    <Container className="mt-4">
+    <Container
+      className="mt-4 p-4 rounded shadow-sm"
+      style={{ background: "linear-gradient(135deg, #f8f9fa, #e9ecef)" }}
+    >
       <Form onSubmit={handleSubmit}>
         {error && (
           <Alert variant="danger" className="mb-3">
             {error}
           </Alert>
         )}
-
         <Alert variant="info" className="mb-3">
-          {getLocationRangeMessage()}
+          {getLocationRangeMessage(city)}
         </Alert>
 
-        <Row className="mb-3">
+        <Row className="mb-4">
           <Col md={12}>
             <Form.Group controlId="startLocation">
-              <Form.Label>
-                <MapPin size={20} className="me-2" />
+              <Form.Label className="fw-bold text-dark">
+                <MapPin size={20} className="me-2 text-primary" />
                 Start Location
               </Form.Label>
               <Form.Control
@@ -148,25 +123,28 @@ const LocationInput = ({ onSubmit }) => {
                 placeholder="Enter start location"
                 required
                 value={startLocation.address}
-                onChange={handleInputChange} // Ensure user input is handled properly
+                onChange={handleInputChange}
+                className="shadow-sm"
               />
             </Form.Group>
           </Col>
         </Row>
 
-        <Row className="mb-3">
+        <Row className="mb-4">
           <Col>
             <Form.Group controlId="transportMode">
-              <Form.Label>Transport Mode</Form.Label>
-              <div className="d-flex justify-content-between">
-                {["driving", "transit", "walking"].map((mode) => (
+              <Form.Label className="fw-bold text-dark">
+                Transport Mode
+              </Form.Label>
+              <div className="d-flex justify-content-between gap-2 flex-wrap">
+                {availableModes.map((mode) => (
                   <Button
                     key={mode}
                     variant={
                       transportMode === mode ? "primary" : "outline-secondary"
                     }
                     onClick={() => setTransportMode(mode)}
-                    className="d-flex align-items-center"
+                    className="d-flex align-items-center flex-grow-1 p-2 shadow-sm"
                   >
                     {mode === "driving" && <Car className="me-2" />}
                     {mode === "transit" && <Train className="me-2" />}
@@ -179,7 +157,7 @@ const LocationInput = ({ onSubmit }) => {
           </Col>
         </Row>
 
-        <Button variant="success" type="submit" className="w-100">
+        <Button variant="success" type="submit" className="w-100 shadow-sm">
           Plan My Tour
         </Button>
       </Form>
