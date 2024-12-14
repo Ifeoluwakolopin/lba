@@ -19,6 +19,7 @@ import RouteInfoHeader from "../components/RouteInfoHeader";
 const RoutePage = () => {
   const location = useLocation();
   const API_BASE_URL = process.env.REACT_APP_API_BASE_URL;
+
   const [viewMode, setViewMode] = useState("list");
 
   const [routeState, setRouteState] = useState({
@@ -44,6 +45,7 @@ const RoutePage = () => {
           current_location_name: data.current_location,
           visited_locations: data.visited_locations,
           transport_mode: data.transport_mode,
+          city: location.state?.routeData?.city, // Include city
         }),
       })
         .then((response) => {
@@ -94,7 +96,7 @@ const RoutePage = () => {
           }));
         });
     },
-    [API_BASE_URL]
+    [API_BASE_URL, location.state?.routeData?.city]
   );
 
   const handleVisitToggle = useCallback((locationName) => {
@@ -125,22 +127,6 @@ const RoutePage = () => {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (routeState.routeData && !routeState.initialized) {
-      setRouteState((prev) => ({
-        ...prev,
-        routeData: {
-          ...prev.routeData,
-          route: prev.routeData.route.filter(
-            (location, index, array) =>
-              location.name !== array[0].name || index === 0
-          ),
-        },
-        initialized: true,
-      }));
-    }
-  }, [routeState.routeData, routeState.initialized]);
-
   if (!routeState.routeData) {
     return <Navigate to="/" replace />;
   }
@@ -151,19 +137,34 @@ const RoutePage = () => {
   ).length;
   const remainingStops = Math.max(0, totalLocations - visitedLocationsCount);
 
+  const totalTime = routeState.routeData.total_time;
+
   return (
     <div className="min-h-screen d-flex flex-column bg-light">
-      <Header
-        title="Your San Francisco Tour Route"
-        subtitle={`Estimated duration: ${Math.floor(
-          routeState.routeData.total_time / 3600
-        )} hours ${Math.floor(
-          (routeState.routeData.total_time % 3600) / 60
-        )} minutes`}
-      />
+      <Header />
 
-      <div className="text-center py-2">
-        <p className="text-muted">Current Time: {currentTime}</p>
+      <div className="text-center py-3 bg-light shadow-sm">
+        <Container>
+          <Row>
+            <Col>
+              <h3>
+                Your{" "}
+                {routeState.routeData.city
+                  .replace("_", " ")
+                  .split(" ")
+                  .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(" ")}{" "}
+                Tour Route
+              </h3>
+
+              <p className="text-muted">
+                Estimated duration: {Math.floor(totalTime / 3600)} hours{" "}
+                {Math.floor((totalTime % 3600) / 60)} minutes
+              </p>
+              <p className="text-muted">Current Time: {currentTime}</p>
+            </Col>
+          </Row>
+        </Container>
       </div>
 
       <main className="flex-grow-1 py-4">
@@ -222,6 +223,7 @@ const RoutePage = () => {
                 routes={routeState.routeData.route.map((r) => r.name)}
                 transportMode={routeState.routeData.transport_mode}
                 currentLocation={routeState.currentLocation}
+                city={routeState.routeData.city} // Pass city to RouteInfoHeader
               />
 
               {viewMode === "list" ? (
@@ -239,7 +241,7 @@ const RoutePage = () => {
                   onVisitToggle={handleVisitToggle}
                   currentLocation={routeState.currentLocation}
                   transportMode={routeState.routeData.transport_mode}
-                  directionsRaw={routeState.routeData.directions_raw} // Pass raw directions
+                  directionsRaw={routeState.routeData.directions_raw}
                 />
               )}
             </Col>

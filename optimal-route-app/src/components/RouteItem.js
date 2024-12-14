@@ -1,15 +1,22 @@
 import React, { useState } from "react";
 import { Card, Form, Collapse, Row, Col, Badge } from "react-bootstrap";
-import { ChevronDown, ChevronUp, MapPin, Check } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  MapPin,
+  CheckCircle,
+  Info,
+  Star,
+} from "lucide-react";
 import locationDetails from "../locationDetails.json";
 
 const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   const details = locationDetails[location] || {
-    description: "Explore this fascinating San Francisco location.",
+    description: "Discover more about this amazing location.",
     images: [],
-    tips: "Check local guides for current visiting hours.",
+    tips: "No specific tips available for this location.",
   };
 
   const handleCheckboxClick = (e) => {
@@ -23,67 +30,77 @@ const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
 
   return (
     <Card
-      className={`mb-3 shadow-sm ${isVisited ? "border-success" : ""}`}
+      className={`mb-3 rounded border-0 ${
+        isVisited ? "border-success" : "border-light"
+      }`}
+      style={{
+        background: "#f9f9f9",
+        cursor: "pointer",
+      }}
       onClick={handleCardClick}
-      style={{ cursor: "pointer" }}
     >
-      <Card.Header className="d-flex align-items-center justify-content-between bg-white py-3">
+      <Card.Header
+        className="d-flex align-items-center justify-content-between py-3 px-4"
+        style={{
+          background: isVisited ? "#e8f5e9" : "#f1f1f1",
+        }}
+      >
         <div className="d-flex align-items-center flex-grow-1">
-          <div
-            className="custom-checkbox me-3"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Form.Check
-              type="checkbox"
-              checked={isVisited}
-              onChange={handleCheckboxClick}
-              id={`visit-check-${index}`}
-              label=""
-              className="border-2"
-            />
-          </div>
+          <Form.Check
+            type="checkbox"
+            checked={isVisited}
+            onChange={handleCheckboxClick}
+            id={`visit-check-${index}`}
+            className="me-3"
+          />
           <MapPin size={20} className="text-primary me-2" />
           <div>
-            <h5 className="mb-0">
+            <h6 className="mb-0 fw-bold">
               {index + 1}. {location}
-            </h5>
+            </h6>
+            <small className="text-muted">Tap to view details</small>
           </div>
         </div>
-        <div className="d-flex align-items-center">
-          {isVisited && (
-            <Badge bg="success" className="me-3">
-              <Check size={14} className="me-1" />
-              Visited
-            </Badge>
-          )}
-          <div className="chevron-icon">
-            {isExpanded ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-          </div>
+        {isVisited && (
+          <Badge bg="success" className="me-3">
+            <CheckCircle size={16} className="me-1" />
+            Visited
+          </Badge>
+        )}
+        <div>
+          {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
         </div>
       </Card.Header>
 
       <Collapse in={isExpanded}>
         <div>
-          <Card.Body>
-            <h6 className="text-primary mb-3">About this Location</h6>
-            <p>{details.description}</p>
+          <Card.Body className="px-4 py-3">
+            <div className="mb-3">
+              <Info size={20} className="me-2 text-primary" />
+              <strong>About this Location</strong>
+            </div>
+            <p className="text-muted">{details.description}</p>
 
             {details.images.length > 0 && (
-              <Row className="mb-3">
+              <Row className="mb-3 g-2">
                 {details.images.map((img, idx) => (
-                  <Col key={idx} md={4} className="mb-3">
+                  <Col key={idx} xs={12} sm={6} md={4}>
                     <img
                       src={img}
                       alt={`${location} view ${idx + 1}`}
-                      className="img-fluid rounded shadow-sm"
+                      className="img-fluid rounded"
+                      style={{ width: "100%", objectFit: "cover" }}
                     />
                   </Col>
                 ))}
               </Row>
             )}
 
-            <h6 className="text-primary mb-2">Visitor Tips</h6>
-            <p className="mb-0">{details.tips}</p>
+            <div className="mb-2">
+              <Star size={20} className="me-2 text-warning" />
+              <strong>Visitor Tips</strong>
+            </div>
+            <p className="text-muted">{details.tips}</p>
           </Card.Body>
         </div>
       </Collapse>

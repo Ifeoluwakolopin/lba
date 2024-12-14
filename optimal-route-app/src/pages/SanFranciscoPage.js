@@ -32,6 +32,8 @@ const SanFranciscoPage = () => (
     title="San Francisco Tour Planner"
     subtitle="Let us plan your perfect day touring San Francisco's top attractions"
     features={FEATURES}
+    navigationLink="/explore/seoul"
+    navigationButtonText="Visit Seoul Instead"
   />
 );
 
