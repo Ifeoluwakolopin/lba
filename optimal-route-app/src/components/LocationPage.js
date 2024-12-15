@@ -1,11 +1,27 @@
 import React, { useState } from "react";
-import { Container, Row, Col, Card, Alert, Spinner } from "react-bootstrap";
+import {
+  Container,
+  Row,
+  Col,
+  Card,
+  Alert,
+  Spinner,
+  Button,
+} from "react-bootstrap";
 import { useNavigate } from "react-router-dom";
 import LocationInput from "./LocationInput";
 import Footer from "./Footer";
 import Header from "./Header";
 
-const LocationPage = ({ city, transportModes, title, subtitle, features }) => {
+const LocationPage = ({
+  city,
+  transportModes,
+  title,
+  subtitle,
+  features,
+  navigationLink,
+  navigationButtonText,
+}) => {
   const navigate = useNavigate();
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -43,7 +59,21 @@ const LocationPage = ({ city, transportModes, title, subtitle, features }) => {
     <div className="min-h-screen d-flex flex-column bg-light">
       <Header title={title} subtitle={subtitle} />
 
-      <main className="flex-grow-1 py-5">
+      <Container className="mt-3">
+        <Row className="justify-content-end">
+          <Col md="auto">
+            <Button
+              variant="outline-primary"
+              className="mb-4"
+              onClick={() => navigate(navigationLink)}
+            >
+              {navigationButtonText}
+            </Button>
+          </Col>
+        </Row>
+      </Container>
+
+      <main className="flex-grow-1 py-4">
         <Container>
           {error && (
             <Alert variant="danger" dismissible onClose={() => setError(null)}>

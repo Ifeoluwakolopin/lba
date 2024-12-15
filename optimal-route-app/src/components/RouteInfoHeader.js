@@ -8,12 +8,14 @@ const RouteInfoHeader = ({
   routes,
   transportMode,
   currentLocation,
+  city,
 }) => {
   const handleRecalculate = () => {
     onRecalculate({
       visited_locations: visitedLocations,
       current_location: currentLocation,
       transport_mode: transportMode,
+      city,
     });
   };
 
