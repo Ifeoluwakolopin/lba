@@ -30,29 +30,37 @@ const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
 
   return (
     <Card
-      className={`mb-3 rounded border-0 ${
-        isVisited ? "border-success" : "border-light"
-      }`}
+      className={`mb-3 shadow-sm transition-all duration-200`}
       style={{
-        background: "#f9f9f9",
         cursor: "pointer",
+        background: isVisited
+          ? "linear-gradient(to right, #e8f5e9, #c8e6c9)"
+          : "linear-gradient(to right, #f8f9fa, #e9ecef)",
+        border: "1px solid",
+        borderColor: isVisited ? "#a5d6a7" : "#dee2e6",
       }}
       onClick={handleCardClick}
     >
       <Card.Header
         className="d-flex align-items-center justify-content-between py-3 px-4"
         style={{
-          background: isVisited ? "#e8f5e9" : "#f1f1f1",
+          background: "transparent",
+          border: "none",
         }}
       >
         <div className="d-flex align-items-center flex-grow-1">
-          <Form.Check
-            type="checkbox"
-            checked={isVisited}
-            onChange={handleCheckboxClick}
-            id={`visit-check-${index}`}
-            className="me-3"
-          />
+          <div className="me-3">
+            <Form.Check
+              type="checkbox"
+              checked={isVisited}
+              onChange={handleCheckboxClick}
+              id={`visit-check-${index}`}
+              style={{
+                transform: "scale(1.1)",
+              }}
+              className="border-2 custom-checkbox"
+            />
+          </div>
           <MapPin size={20} className="text-primary me-2" />
           <div>
             <h6 className="mb-0 fw-bold">
@@ -62,7 +70,11 @@ const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
           </div>
         </div>
         {isVisited && (
-          <Badge bg="success" className="me-3">
+          <Badge
+            bg="success"
+            className="me-3 d-flex align-items-center"
+            style={{ padding: "8px 12px" }}
+          >
             <CheckCircle size={16} className="me-1" />
             Visited
           </Badge>
@@ -75,13 +87,13 @@ const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
       <Collapse in={isExpanded}>
         <div>
           <Card.Body className="px-4 py-3">
-            <div className="mb-3">
-              <Info size={20} className="me-2 text-primary" />
+            <div className="d-flex align-items-center mb-3">
+              <Info size={20} className="text-primary me-2" />
               <strong>About this Location</strong>
             </div>
             <p className="text-muted">{details.description}</p>
 
-            {details.images.length > 0 && (
+            {details.images && details.images.length > 0 && (
               <Row className="mb-3 g-2">
                 {details.images.map((img, idx) => (
                   <Col key={idx} xs={12} sm={6} md={4}>
@@ -89,15 +101,19 @@ const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
                       src={img}
                       alt={`${location} view ${idx + 1}`}
                       className="img-fluid rounded"
-                      style={{ width: "100%", objectFit: "cover" }}
+                      style={{
+                        width: "100%",
+                        height: "200px",
+                        objectFit: "cover",
+                      }}
                     />
                   </Col>
                 ))}
               </Row>
             )}
 
-            <div className="mb-2">
-              <Star size={20} className="me-2 text-warning" />
+            <div className="d-flex align-items-center mb-2">
+              <Star size={20} className="text-warning me-2" />
               <strong>Visitor Tips</strong>
             </div>
             <p className="text-muted">{details.tips}</p>
@@ -107,5 +123,4 @@ const RouteItem = ({ location, index, isVisited, onVisitToggle }) => {
     </Card>
   );
 };
-
 export default RouteItem;
