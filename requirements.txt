@@ -249,7 +249,7 @@ pygments==2.18.0
     #   nbconvert
 pyogrio==0.10.0
     # via geopandas
-pyproj==3.7.0
+pyproj==3.7.2
     # via geopandas
 python-dateutil==2.9.0.post0
     # via
