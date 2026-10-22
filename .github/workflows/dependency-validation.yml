@@ -29,6 +29,7 @@ jobs:
           assert.equal(new JSDOM('<p>local smoke</p>').window.document.querySelector('p').textContent, 'local smoke');
           const cwd = path.resolve('.dependency-smoke');
           fs.mkdirSync(cwd);
+          fs.writeFileSync(path.join(cwd, 'package.json'), '{"private":true}');
           fs.writeFileSync(path.join(cwd, 'base.yml'), 'all: true\ninclude:\n  - src/**/*.js\n');
           fs.writeFileSync(path.join(cwd, '.nycrc.yml'), 'extends: ./base.yml\nexclude:\n  - "**/*.test.js"\n');
           require('@istanbuljs/load-nyc-config').loadNycConfig({ cwd }).then(config => {
