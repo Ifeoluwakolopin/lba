@@ -1,0 +1,147 @@
+name: Dependency compatibility
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci --no-audit --no-fund
+        working-directory: optimal-route-app
+      - name: Dependency API compatibility smoke
+        working-directory: optimal-route-app
+        run: |
+          node <<'JS'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const parser = require('postcss-selector-parser');
+          for (const selector of ['.card > a:hover', ':is(.a, .b)', '[data-value="a,b"]', '.foo\\:bar:not(#id)', 'svg|a']) {
+            assert.equal(parser().astSync(selector).toString(), selector);
+          }
+          const { JSDOM } = require('jsdom');
+          assert.equal(new JSDOM('<p>local smoke</p>').window.document.querySelector('p').textContent, 'local smoke');
+          const cwd = path.resolve('.dependency-smoke');
+          fs.mkdirSync(cwd);
+          fs.writeFileSync(path.join(cwd, 'base.yml'), 'all: true\ninclude:\n  - src/**/*.js\n');
+          fs.writeFileSync(path.join(cwd, '.nycrc.yml'), 'extends: ./base.yml\nexclude:\n  - "**/*.test.js"\n');
+          require('@istanbuljs/load-nyc-config').loadNycConfig({ cwd }).then(config => {
+            assert.equal(config.all, true);
+            assert.deepEqual(config.include, ['src/**/*.js']);
+            assert.deepEqual(config.exclude, ['**/*.test.js']);
+          }).finally(() => fs.rmSync(cwd, { recursive: true })).catch(error => {
+            console.error(error);
+            process.exitCode = 1;
+          });
+          JS
+      - run: npm run build
+        working-directory: optimal-route-app
+        env:
+          CI: 'false'
+      - name: Isolated development server compatibility smoke
+        working-directory: optimal-route-app
+        run: |
+          python - <<'PY'
+          import http.client, os, signal, subprocess, time, urllib.request, urllib.error
+          env = dict(os.environ, HOST="127.0.0.1", PORT="4173", BROWSER="none", CI="true")
+          with open(".devserver.log", "w+") as log:
+              process = subprocess.Popen(["npm", "start"], env=env, stdout=log,
+                                         stderr=subprocess.STDOUT, start_new_session=True)
+              try:
+                  deadline = time.monotonic() + 180
+                  while True:
+                      try:
+                          with urllib.request.urlopen("http://127.0.0.1:4173/", timeout=3) as response:
+                              assert b'<div id="root">' in response.read()
+                          break
+                      except (OSError, TimeoutError):
+                          if process.poll() is not None or time.monotonic() > deadline:
+                              log.seek(0)
+                              raise AssertionError(log.read())
+                          time.sleep(2)
+                  for path in ["/isolated-spa-route", "/manifest.json", "/static/js/bundle.js"]:
+                      with urllib.request.urlopen("http://127.0.0.1:4173" + path, timeout=30) as response:
+                          assert response.status == 200 and response.read()
+                  connection = http.client.HTTPConnection("127.0.0.1", 4173, timeout=5)
+                  connection.request("GET", "/ws", headers={
+                      "Upgrade": "websocket", "Connection": "Upgrade",
+                      "Sec-WebSocket-Key": "MDEyMzQ1Njc4OWFiY2RlZg==", "Sec-WebSocket-Version": "13",
+                      "Origin": "http://127.0.0.1:4173",
+                  })
+                  assert connection.getresponse().status == 101
+                  connection.close()
+                  request = urllib.request.Request("http://127.0.0.1:4173/", headers={"Host": "evil.invalid"})
+                  try:
+                      urllib.request.urlopen(request, timeout=5)
+                      raise AssertionError("Foreign host accepted")
+                  except urllib.error.HTTPError as error:
+                      assert error.code == 403
+              finally:
+                  os.killpg(process.pid, signal.SIGTERM)
+                  process.wait(timeout=20)
+          print("Dev server, assets, SPA fallback, HMR and host checks passed")
+          PY
+  backend:
+    runs-on: ubuntu-latest
+    env:
+      PYTHON_DOTENV_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --upgrade pip setuptools
+          .venv/bin/python -m pip install -r requirements.txt
+          .venv/bin/python -m pip check
+      - name: Isolated route, solver and notebook smoke
+        run: |
+          .venv/bin/python - <<'PY'
+          import socket
+          from unittest.mock import patch
+          import numpy as np
+          import jupyterlab, notebook, nbconvert, jupyter_server, mistune
+          with patch("dotenv.load_dotenv"), patch("googlemaps.Client") as maps, \
+               patch.object(socket.socket, "connect", side_effect=AssertionError("network disabled")):
+              import api
+              maps.return_value.distance_matrix.return_value = {
+                  "rows": [{"elements": [{"status": "OK", "duration": {"value": 60}}]}]
+              }
+              maps.return_value.directions.return_value = []
+              client = api.app.test_client()
+              assert client.post("/calculate-route", json={}).status_code == 400
+              for city in api.ALLOWED_CITIES:
+                  for mode in api.ALLOWED_MODES:
+                      response = client.post("/calculate-route", json={
+                          "city": city, "transport_mode": mode,
+                          "start_location_name": "Hotel", "start_location_coords": [0, 0]
+                      })
+                      assert response.status_code == 200, response.json
+                      body = response.json
+                      assert body["city"] == city and body["transport_mode"] == mode
+                      assert body["route"][0]["name"] == body["route"][-1]["name"] == "Hotel"
+                      assert len(body["route"]) == len(api.PREDEFINED_DESTINATIONS[city]) + 2
+                  names = list(api.PREDEFINED_DESTINATIONS[city])
+                  response = client.post("/recalculate-route", json={
+                      "city": city, "current_location_name": names[0], "visited_locations": names
+                  })
+                  assert response.status_code == 200 and response.json["total_time"] == 0
+              preflight = client.options("/calculate-route", headers={
+                  "Origin": "https://local.invalid", "Access-Control-Request-Method": "POST"
+              })
+              assert preflight.headers["Access-Control-Allow-Origin"] == "https://local.invalid"
+          print("Route/solver/CORS/notebook smoke passed without external services")
+          PY
+      - name: Audit installed Python tree
+        run: |
+          python -m venv .audit
+          .audit/bin/python -m pip install --upgrade pip setuptools
+          .audit/bin/python -m pip install pip-audit
+          .audit/bin/pip-audit --path .venv/lib/python3.11/site-packages
