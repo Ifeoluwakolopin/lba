@@ -1,8 +1,9 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+test('renders the destination chooser without external Google Maps requests', async () => {
+  vi.stubGlobal('google', { maps: {} });
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+  expect(await screen.findByRole('heading', { name: 'Choose Your Destination' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Seoul' })).toBeInTheDocument();
 });

@@ -18,7 +18,7 @@ An efficient and user-friendly application to plan your perfect day touring San 
 ## **Installation and Local Setup**
 
 ### **Prerequisites**
-- Node.js 22.15+ (22 LTS is used in compatibility checks)
+- Node.js 22.22.2+ within Node 22 LTS (also used in compatibility checks)
 - Python 3.11+ (for the backend)
 - Pip (Python package manager)
 
@@ -80,31 +80,37 @@ Your React app will start at `http://localhost:3000`.
 
 ### Dependency maintenance
 
-The frontend retains Create React App, its start/build/test/eject scripts,
-React 18, Google Maps integration and existing routes. Scoped overrides update
-the SVG loader, CSS minimizer, source-map URL loader and optional Workbox
-plugin within the existing webpack configuration; Node 22 is required.
-`npm start` delegates to CRA through a small webpack-dev-server 5 adapter:
-HTTPS, source maps, custom proxy setup, SPA fallback and no-op service-worker
-middleware are retained. Host checks default to `auto`, and development assets
-no longer advertise wildcard cross-origin access. The explicit legacy
-`DANGEROUSLY_DISABLE_HOST_CHECK` escape hatch remains available.
-Compatible scoped HTTP-proxy, UUID and Underscore parents and the maintained
-selector-parser API are refreshed without forcing incompatible helper exports.
+The owner-approved migration replaces abandoned CRA tooling with Vite 8,
+Vitest 5 and ESLint 9, not React 18, Google Maps, routes or application behavior.
+Restore with `npm ci`; `npm start` serves port 3000 with fast refresh.
+`npm run build` checks lint errors then emits the existing `build/` layout,
+hashed static assets and source maps. Existing browserslist targets apply to
+JavaScript and CSS. `npm test` watches the existing app smoke; use
+`npm test -- --run --coverage` for a single coverage run. The stale template
+assertion now checks the real destination chooser with Google Maps mocked.
+`npm run eject` explains that Vite and ESLint configuration is already explicit.
+
+Existing `.js` JSX imports, public assets, `REACT_APP_*`, `PUBLIC_URL`,
+`BUILD_PATH`, `GENERATE_SOURCEMAP=false`, HOST/PORT, HTTPS/certificate and
+WDS_SOCKET_* settings remain supported. Only public-prefixed variables plus
+NODE_ENV/PUBLIC_URL are exposed to the browser, never arbitrary process env.
+Vite host checks and restricted development CORS are enabled by default;
+the explicit `DANGEROUSLY_DISABLE_HOST_CHECK` escape hatch remains.
+SPA history fallback and development service-worker unregistration are retained.
+There is no custom setupProxy or registered production service worker to port.
+HTTPS uses selfsigned 5's maintained PKI implementation, not bundled node-forge.
+`start:dev` retains Node development watching via `node --watch server.js`;
+the missing `server.js` entry point is pre-existing, not a runnable second server.
+
 The Python environment retains optimization, geospatial and notebook/Jupyter
 functionality. Compatibility CI uses mocked Google Maps, the real GLPK solver
-and no production services. The frontend build retains local CRA warning
-behavior (`CI=false`); it does not claim the stale template test passes.
-
-Run `npm audit` including development dependencies when updating the lockfile.
-The security branch alone is excluded from automatic Vercel deployment at
-both potential project roots; other branches retain existing deployment behavior.
-CRA's remaining upstream development-tool advisories (including unpatched
-braces) are not dismissed or certified safe. Patched webpack-dev-server removes
-node-forge through its maintained certificate generator, and NYC's compatible
-YAML 4 loader removes the sprintf-js ownership path.
-Replacing the complete build/test toolchain needs a separately reviewed
-compatibility plan, not an `npm audit --force` downgrade.
+and no production services. Hosted validation checks the complete npm tree,
+the installed Python tree, existing app test, lint/build, assets, SPA/HMR,
+host rejection, HTTPS, public-env filtering and alternate build paths.
+The security branches are excluded from automatic Vercel deployment at both
+potential project roots; Vercel explicitly serves `build/` and SPA routes.
+The migration removes the unpatched braces ownership paths rather than
+dismissing alerts or forcing incompatible transitive overrides.
 
 We welcome contributions to enhance the app! Follow these steps to contribute:
 
