@@ -14,43 +14,28 @@ jobs:
           node-version: '22'
       - run: npm ci --no-audit --no-fund
         working-directory: optimal-route-app
-      - name: Dependency API compatibility smoke
+      - name: Audit complete frontend tree
         working-directory: optimal-route-app
-        run: |
-          node <<'JS'
-          const assert = require('node:assert/strict');
-          const fs = require('node:fs');
-          const path = require('node:path');
-          const parser = require('postcss-selector-parser');
-          for (const selector of ['.card > a:hover', ':is(.a, .b)', '[data-value="a,b"]', '.foo\\:bar:not(#id)', 'svg|a']) {
-            assert.equal(parser().astSync(selector).toString(), selector);
-          }
-          const { JSDOM } = require('jsdom');
-          assert.equal(new JSDOM('<p>local smoke</p>').window.document.querySelector('p').textContent, 'local smoke');
-          const cwd = path.resolve('.dependency-smoke');
-          fs.mkdirSync(cwd);
-          fs.writeFileSync(path.join(cwd, 'package.json'), '{"private":true}');
-          fs.writeFileSync(path.join(cwd, 'base.yml'), 'all: true\ninclude:\n  - src/**/*.js\n');
-          fs.writeFileSync(path.join(cwd, '.nycrc.yml'), 'extends: ./base.yml\nexclude:\n  - "**/*.test.js"\n');
-          require('@istanbuljs/load-nyc-config').loadNycConfig({ cwd }).then(config => {
-            assert.equal(config.all, true);
-            assert.deepEqual(config.include, ['src/**/*.js']);
-            assert.deepEqual(config.exclude, ['**/*.test.js']);
-          }).finally(() => fs.rmSync(cwd, { recursive: true })).catch(error => {
-            console.error(error);
-            process.exitCode = 1;
-          });
-          JS
+        run: npm audit --audit-level=low
+      - run: npm test -- --run --coverage
+        working-directory: optimal-route-app
       - run: npm run build
         working-directory: optimal-route-app
         env:
-          CI: 'false'
+          PRIVATE_BUILD_CANARY: not-for-client-4bb29a
       - name: Isolated development server compatibility smoke
         working-directory: optimal-route-app
         run: |
           python - <<'PY'
-          import http.client, os, signal, subprocess, time, urllib.request, urllib.error
-          env = dict(os.environ, HOST="127.0.0.1", PORT="4173", BROWSER="none", CI="true")
+          import http.client, os, pathlib, re, signal, ssl, subprocess, time, urllib.request, urllib.error
+          build = pathlib.Path("build")
+          html = (build / "index.html").read_text()
+          assert '<div id="root">' in html and "%PUBLIC_URL%" not in html
+          for asset in re.findall(r'(?:src|href)="(/static/[^"]+)"', html):
+              assert (build / asset.lstrip("/")).is_file(), asset
+          assert list(build.rglob("*.map")), "Default source maps missing"
+          assert all("not-for-client-4bb29a" not in path.read_text() for path in build.rglob("*.js"))
+          env = dict(os.environ, HOST="127.0.0.1", PORT="4173", BROWSER="none", CI="true", WDS_SOCKET_PATH="/ws")
           with open(".devserver.log", "w+") as log:
               process = subprocess.Popen(["npm", "start"], env=env, stdout=log,
                                          stderr=subprocess.STDOUT, start_new_session=True)
@@ -66,17 +51,20 @@ jobs:
                               log.seek(0)
                               raise AssertionError(log.read())
                           time.sleep(2)
-                  for path in ["/isolated-spa-route", "/manifest.json", "/static/js/bundle.js", "/service-worker.js"]:
+                  for path in ["/isolated-spa-route", "/manifest.json", "/src/index.js", "/@vite/client", "/service-worker.js"]:
                       request = urllib.request.Request("http://127.0.0.1:4173" + path, headers={
                           "Accept": "text/html" if path == "/isolated-spa-route" else "*/*"
                       })
                       with urllib.request.urlopen(request, timeout=30) as response:
                           assert response.status == 200 and response.read()
+                  with urllib.request.urlopen("http://127.0.0.1:4173/@vite/client") as response:
+                      token = re.search(r'const wsToken\s*=\s*"([^"]+)"', response.read().decode()).group(1)
                   connection = http.client.HTTPConnection("127.0.0.1", 4173, timeout=5)
-                  connection.request("GET", "/ws", headers={
+                  connection.request("GET", "/ws?token=" + token, headers={
                       "Upgrade": "websocket", "Connection": "Upgrade",
                       "Sec-WebSocket-Key": "MDEyMzQ1Njc4OWFiY2RlZg==", "Sec-WebSocket-Version": "13",
                       "Origin": "http://127.0.0.1:4173",
+                      "Sec-WebSocket-Protocol": "vite-hmr",
                   })
                   assert connection.getresponse().status == 101
                   connection.close()
@@ -89,7 +77,31 @@ jobs:
               finally:
                   os.killpg(process.pid, signal.SIGTERM)
                   process.wait(timeout=20)
-          print("Dev server, assets, SPA fallback, HMR and host checks passed")
+          env.update(HTTPS="true", PORT="4174")
+          with open(".https-devserver.log", "w+") as log:
+              process = subprocess.Popen(["npm", "start"], env=env, stdout=log,
+                                         stderr=subprocess.STDOUT, start_new_session=True)
+              try:
+                  deadline = time.monotonic() + 60
+                  while True:
+                      try:
+                          with urllib.request.urlopen("https://127.0.0.1:4174/", context=ssl._create_unverified_context(), timeout=3) as response:
+                              assert b'<div id="root">' in response.read()
+                          break
+                      except (OSError, TimeoutError):
+                          if process.poll() is not None or time.monotonic() > deadline:
+                              log.seek(0)
+                              raise AssertionError(log.read())
+                          time.sleep(1)
+              finally:
+                  os.killpg(process.pid, signal.SIGTERM)
+                  process.wait(timeout=20)
+          env.update(PUBLIC_URL="/isolated-base", BUILD_PATH="build-config-smoke", GENERATE_SOURCEMAP="false")
+          subprocess.run(["npm", "exec", "--", "vite", "build"], env=env, check=True)
+          configured = pathlib.Path("build-config-smoke")
+          assert "/isolated-base/static/js/" in (configured / "index.html").read_text()
+          assert not list(configured.rglob("*.map"))
+          print("Build output, env filtering, JSX, assets, SPA, HMR, host and HTTPS checks passed")
           PY
   backend:
     runs-on: ubuntu-latest

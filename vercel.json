@@ -1,8 +1,14 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "npm --prefix optimal-route-app ci",
+  "buildCommand": "npm --prefix optimal-route-app run build",
+  "outputDirectory": "optimal-route-app/build",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "git": {
     "deploymentEnabled": {
-      "security/dependency-refresh-20261021": false
+      "security/dependency-refresh-20261021": false,
+      "security/vite-tooling-20261021": false
     }
   }
 }

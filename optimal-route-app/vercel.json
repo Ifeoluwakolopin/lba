@@ -1,8 +1,13 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "build",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }],
   "git": {
     "deploymentEnabled": {
-      "security/dependency-refresh-20261021": false
+      "security/dependency-refresh-20261021": false,
+      "security/vite-tooling-20261021": false
     }
   }
 }
